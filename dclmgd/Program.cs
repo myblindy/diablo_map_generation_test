@@ -1,4 +1,5 @@
 ﻿using JM.LinqFaster;
+using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
@@ -43,14 +44,8 @@ namespace dclmgd
         }
     }
 
-    class Cell
+    record Cell(int X, int Y, int Width, int Height, int Index, double Value)
     {
-        public int X { get; init; }
-        public int Y { get; init; }
-        public int Width { get; init; }
-        public int Height { get; init; }
-        public int Index { get; init; }
-        public double Value { get; init; }
         public List<Cell> Neighbours { get; } = new();
     }
 
@@ -69,9 +64,11 @@ namespace dclmgd
         readonly Stopwatch stopwatch = Stopwatch.StartNew();
         readonly string text;
 
+        public static List<string> Strings { get; } = new();
+
         public StopwatchPrint(string text) => this.text = text;
 
-        public void Dispose() => Console.WriteLine($"{text} took {stopwatch.ElapsedMilliseconds}ms");
+        public void Dispose() => Strings.Add($"{text} took {stopwatch.ElapsedMilliseconds}ms");
     }
 
     class Program
@@ -85,8 +82,8 @@ namespace dclmgd
             var cellData = new double[width, height];
             var cells = new List<Cell>();
 
-            int startPointX = rng.Next(width / 10), startPointY = rng.Next(height / 10);
-            int endPointX = rng.Next(width * 9 / 10, width), endPointY = rng.Next(height * 9 / 10, height);
+            int startPointX = rng.Next(width / 6), startPointY = rng.Next(height / 6);
+            int endPointX = rng.Next(width * 5 / 6, width), endPointY = rng.Next(height * 5 / 6, height);
             Cell startCell = default, endCell = default;
             int startCellIndex = -1, endCellIndex = -1;
 
@@ -123,12 +120,12 @@ namespace dclmgd
                             for (int yp = y; yp < y + cellHeight; ++yp)
                                 cellData[xp, yp] = cellValue;
 
-                        var cell = new Cell { X = x, Y = y, Width = cellWidth, Height = cellHeight, Value = cellValue, Index = cells.Count };
+                        var cell = new Cell(x, y, cellWidth, cellHeight, cells.Count, cellValue);
                         cells.Add(cell);
 
-                        if (startPointX.Between(cell.X, cell.X + cell.Width) && startPointY.Between(cell.Y, cell.Y + cell.Height))
+                        if (startPointX.Between(cell.X, cell.X + cell.Width - 1) && startPointY.Between(cell.Y, cell.Y + cell.Height - 1))
                             (startCell, startCellIndex) = (cell, cells.Count - 1);
-                        if (endPointX.Between(cell.X, cell.X + cell.Width) && endPointY.Between(cell.Y, cell.Y + cell.Height))
+                        if (endPointX.Between(cell.X, cell.X + cell.Width - 1) && endPointY.Between(cell.Y, cell.Y + cell.Height - 1))
                             (endCell, endCellIndex) = (cell, cells.Count - 1);
 
                         y += cellHeight - 1;
@@ -140,9 +137,9 @@ namespace dclmgd
                     foreach (var otherCell in cells)
                         if (cell != otherCell)
                             if (((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
-                                    && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height)))
+                                    && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1)))
                                 || ((otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
-                                    && (otherCell.X.Between(cell.X, cell.X + cell.Width) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width))))
+                                    && (otherCell.X.Between(cell.X, cell.X + cell.Width - 1) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width - 1))))
                             {
                                 cell.Neighbours.Add(otherCell);
                             }
@@ -176,46 +173,88 @@ namespace dclmgd
                 } while (visitedCells.Count != cells.Count && !visitedCells.Contains(endCell.Index));
             }
 
+            // select the cells along the path, and some other random cells linked to some of them, possibly recursive
+            var selectedCells = new List<Cell>();
+            var extraLinks = new List<(Cell c1, Cell c2)>();
+            using (new StopwatchPrint("Selecting cells"))
+            {
+                for (var cell = endCell; cell is not null; cell = prevCell[cell])
+                    selectedCells.Add(cell);
+
+                for (var extraRoomsCount = rng.Next(width * height / 15, width * height / 5); extraRoomsCount >= 0; --extraRoomsCount)
+                {
+                    Cell cellToAdd = default;
+
+                    // select a random cell to pull a neighbor
+                    do
+                    {
+                        var selectedCell = selectedCells[rng.Next(selectedCells.Count)];
+                        var availableNeighbours = selectedCell.Neighbours.Except(selectedCells).ToList();
+                        if (availableNeighbours.Any())
+                        {
+                            cellToAdd = availableNeighbours[rng.Next(availableNeighbours.Count)];
+                            extraLinks.Add((selectedCell, cellToAdd));
+                        }
+                    } while (cellToAdd is null);
+
+                    selectedCells.Add(cellToAdd);
+                }
+            }
+
+            // link a few more neighbours 
+            using (new StopwatchPrint("Linking extra neighbours"))
+                for (var extraLinksCount = rng.Next(width * height / 40, width * height / 20); extraLinksCount >= 0; --extraLinksCount)
+                    while (true)
+                    {
+                        // select a random pair of selected cells and make sure they're not already linked
+                        var c1 = selectedCells[rng.Next(selectedCells.Count)];
+                        var c2 = c1.Neighbours[rng.Next(c1.Neighbours.Count)];
+                        if (c1 != c2 && selectedCells.Contains(c2) && prevCell[c1] != c2 && prevCell[c2] != c1 && !extraLinks.Any(w => w == (c1, c2) && w == (c2, c1)))
+                        {
+                            extraLinks.Add((c1, c2));
+                            break;
+                        }
+                    }
+
             // draw the output
             const int drawScale = 15;
-            var img = new Image<Rgba32>((width + 1) * drawScale, (height + 1) * drawScale);
+            const float graphLineThickness = 4, borderThickness = 2;
+            var img = new Image<Rgba32>(width * drawScale, height * drawScale);
             using (new StopwatchPrint("Rendering the output"))
             {
                 img.Mutate(ctx =>
                 {
-                    cells.ForEach(cell => ctx.Fill(new Color(new Rgba32((float)cell.Value, (float)cell.Value, (float)cell.Value)),
-                        new RectangleF(cell.X * drawScale, cell.Y * drawScale, cell.Width * drawScale, cell.Height * drawScale)));
+                    ctx.Clear(Color.White);
 
-                    static (int x, int y) getCenter(Cell cell) => ((cell.X + cell.Width / 2) * drawScale, (cell.Y + cell.Height / 2) * drawScale);
+                    selectedCells.ForEach(cell =>
+                    {
+                        var rect = new RectangleF(cell.X * drawScale, cell.Y * drawScale, cell.Width * drawScale, cell.Height * drawScale);
+                        ctx.Fill(new Color(new Rgba32((float)cell.Value, (float)cell.Value, (float)cell.Value)), rect)
+                            .Draw(Color.Pink, borderThickness, rect);
+                    });
 
-                    var (lastX, lastY) = getCenter(endCell);
+                    static PointF getCenter(Cell cell) => new((cell.X + cell.Width / 2.0f) * drawScale, (cell.Y + cell.Height / 2.0f) * drawScale);
+
+                    // room graph
+                    var lastPoint = getCenter(endCell);
                     for (var cell = prevCell[endCell]; cell is not null; cell = prevCell[cell])
                     {
-                        var (x, y) = getCenter(cell);
-                        ctx.DrawLines(Color.Red, 2, new(lastX, lastY), new(x, y));
-                        (lastX, lastY) = (x, y);
+                        var currentPoint = getCenter(cell);
+                        ctx.DrawLines(Color.Red, graphLineThickness, lastPoint, currentPoint);
+                        lastPoint = currentPoint;
                     }
+
+                    // extra links
+                    extraLinks.ForEach(w => ctx.DrawLines(Color.Blue, graphLineThickness, getCenter(w.c1), getCenter(w.c2)));
+
+                    // status text
+                    ctx.DrawText(new TextGraphicsOptions() { TextOptions = { HorizontalAlignment = HorizontalAlignment.Right } },
+                        string.Join("\n", StopwatchPrint.Strings), SystemFonts.CreateFont("Segoe UI", 24, FontStyle.Bold), Color.Black, new(width * drawScale, 0));
                 });
             }
 
             img.SaveAsPng("output.png");
             Process.Start(new ProcessStartInfo("output.png") { UseShellExecute = true });
-
-            //var parts = Directory.EnumerateFiles("Maps/WideOpen").SelectMany(p =>
-            //{
-            //    var image = Image.Load<Rgba32>(p);
-
-            //    return new[]
-            //    {
-            //        new MapPart(image),
-            //        new MapPart(image.Clone(c => c.Rotate(RotateMode.Rotate90))),
-            //        new MapPart(image.Clone(c => c.Rotate(RotateMode.Rotate180))),
-            //        new MapPart(image.Clone(c => c.Rotate(RotateMode.Rotate270))),
-
-            //        new MapPart(image.Clone(c => c.Flip(FlipMode.Horizontal))),
-            //        new MapPart(image.Clone(c => c.Flip(FlipMode.Vertical))),
-            //    };
-            //}).ToList();
         }
     }
 }
