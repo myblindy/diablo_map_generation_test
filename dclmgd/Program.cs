@@ -1,5 +1,6 @@
 ﻿using Assimp;
 using dclmgd.Renderer;
+using dclmgd.Support;
 using JM.LinqFaster;
 using MoreLinq;
 using OpenTK.Graphics.OpenGL4;
@@ -11,6 +12,7 @@ using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -223,42 +225,49 @@ namespace dclmgd
             using (new StopwatchPrint("Building the cells' neighbour graph data"))
                 foreach (var cell in cells)
                     foreach (var otherCell in cells)
-                        //if (cell != otherCell)
-                        if (((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
-                                && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1)))
-                            || ((otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
-                                && (otherCell.X.Between(cell.X, cell.X + cell.Width - 1) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width - 1))))
-                        {
-                            cell.Neighbours.Add(otherCell);
-                        }
+                        // if (cell != otherCell)
+                            if ((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
+                                    && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1))
+                                || (otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
+                                    && (otherCell.X.Between(cell.X, cell.X + cell.Width - 1) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width - 1)))
+                            {
+                                cell.Neighbours.Add(otherCell);
+                            }
 
             // Dijkstra's algorithm to find the shortest path in the cell graph
-            var prevCell = cells.ToDictionary(cell => cell, _ => (Cell)null);
+            var prevCell = new Cell[cells.Count];
             using (new StopwatchPrint("Running the shortest path algorithm"))
             {
                 var cellDistance = new double[cells.Count];
                 cellDistance.SetAll(idx => idx == startCellIndex ? 0 : double.PositiveInfinity);
 
-                var visitedCells = new HashSet<int>();
+                var visitedCells = new BitArray64(cells.Count);
 
                 do
                 {
                     // current cell is the smallest unvisited tentative distance cell 
-                    var currentCell = cells[cellDistance.Select((d, idx) => (d, idx)).OrderBy(x => x.d).First(x => !visitedCells.Contains(cells[x.idx].Index)).idx];
+                    Cell currentCell = null;
+                    double currentCellCost = double.PositiveInfinity;
+                    for (int cellDistanceIdx = 0; cellDistanceIdx < cellDistance.Length; ++cellDistanceIdx)
+                        if (cellDistance[cellDistanceIdx] < currentCellCost && !visitedCells[cellDistanceIdx])
+                        {
+                            currentCell = cells[cellDistanceIdx];
+                            currentCellCost = cellDistance[cellDistanceIdx];
+                        }
 
                     foreach (var neighbourCell in currentCell.Neighbours)
-                        if (!visitedCells.Contains(neighbourCell.Index))
+                        if (!visitedCells[neighbourCell.Index])
                         {
                             var distanceThroughCurrentCell = cellDistance[currentCell.Index] + neighbourCell.Value;
                             if (cellDistance[neighbourCell.Index] > distanceThroughCurrentCell)
                             {
                                 cellDistance[neighbourCell.Index] = distanceThroughCurrentCell;
-                                prevCell[neighbourCell] = currentCell;
+                                prevCell[neighbourCell.Index] = currentCell;
                             }
                         }
 
-                    visitedCells.Add(currentCell.Index);
-                } while (visitedCells.Count != cells.Count && !visitedCells.Contains(endCell.Index));
+                    visitedCells[currentCell.Index] = true;
+                } while (!visitedCells.AllTrue() && !visitedCells[endCell.Index]);
             }
 
             // select the cells along the path, and some other random cells linked to some of them, possibly recursive
@@ -266,7 +275,7 @@ namespace dclmgd
             var extraLinks = new List<(Cell c1, Cell c2)>();
             using (new StopwatchPrint("Selecting cells"))
             {
-                for (var cell = endCell; cell is not null; cell = prevCell[cell])
+                for (var cell = endCell; cell is not null; cell = prevCell[cell.Index])
                     selectedCells.Add(cell);
 
                 for (var extraRoomsCount = rng.Next(width * height / 15, width * height / 5); extraRoomsCount >= 0; --extraRoomsCount)
@@ -297,7 +306,7 @@ namespace dclmgd
                         // select a random pair of selected cells and make sure they're not already linked
                         var c1 = selectedCells[rng.Next(selectedCells.Count)];
                         var c2 = c1.Neighbours[rng.Next(c1.Neighbours.Count)];
-                        if (c1 != c2 && selectedCells.Contains(c2) && prevCell[c1] != c2 && prevCell[c2] != c1 && !extraLinks.Any(w => w == (c1, c2) && w == (c2, c1)))
+                        if (c1 != c2 && selectedCells.Contains(c2) && prevCell[c1.Index] != c2 && prevCell[c2.Index] != c1 && !extraLinks.Any(w => w == (c1, c2) && w == (c2, c1)))
                         {
                             extraLinks.Add((c1, c2));
                             break;
@@ -325,7 +334,7 @@ namespace dclmgd
 
                     // room graph
                     var lastPoint = getCenter(endCell);
-                    for (var cell = prevCell[endCell]; cell is not null; cell = prevCell[cell])
+                    for (var cell = prevCell[endCell.Index]; cell is not null; cell = prevCell[cell.Index])
                     {
                         var currentPoint = getCenter(cell);
                         ctx.DrawLines(Color.Red, graphLineThickness, lastPoint, currentPoint);
