@@ -1,4 +1,10 @@
-﻿using JM.LinqFaster;
+﻿using Assimp;
+using dclmgd.Renderer;
+using JM.LinqFaster;
+using MoreLinq;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.Desktop;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
@@ -9,6 +15,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace dclmgd
 {
@@ -71,10 +80,89 @@ namespace dclmgd
         public void Dispose() => Strings.Add($"{text} took {stopwatch.ElapsedMilliseconds}ms");
     }
 
+    class Window : GameWindow
+    {
+        public Window() : base(
+            new()
+            {
+                RenderFrequency = 60,
+                UpdateFrequency = 60,
+                IsMultiThreaded = false,
+            }, new()
+            {
+                Profile = ContextProfile.Any,
+                API = ContextAPI.OpenGL,
+                APIVersion = new Version(4, 6),
+                StartFocused = true,
+                StartVisible = true,
+                Size = new OpenTK.Mathematics.Vector2i(800, 600),
+                Title = "dclmgd",
+                Flags = ContextFlags.ForwardCompatible,
+            })
+        {
+        }
+
+        static readonly AssimpContext assimpContext = new();
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        struct Vertex
+        {
+            public Vector3 position;
+            public Vector3 normal;
+            public Vector2 uv;
+        }
+        VertexArrayObject<Vertex, uint> vao;
+        ShaderProgram program;
+
+        protected override void OnLoad()
+        {
+            VSync = VSyncMode.Off;
+
+            // enable debug messages
+            GL.Enable(EnableCap.DebugOutput);
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+
+            GL.DebugMessageCallback((src, type, id, severity, len, msg, usr) =>
+            {
+                if (severity > DebugSeverity.DebugSeverityNotification)
+                    unsafe
+                    {
+                        Console.WriteLine($"GL ERROR {Encoding.ASCII.GetString((byte*)msg, len)}, type: {type}, severity: {severity}, source: {src}");
+                    }
+            }, IntPtr.Zero);
+
+            // load the model
+            var model = assimpContext.ImportFile("Data/MapObjects/column.dae");
+
+            var mesh = model.Meshes[0];
+            var indices = mesh.GetUnsignedIndices();
+
+            vao = new(true, mesh.VertexCount, indices.Length);
+            mesh.Vertices.Select(w => new Vector3(w.X, w.Y, w.Z))
+                .Zip(mesh.Normals.Select(w => new Vector3(w.X, w.Y, w.Z)))
+                .Zip(mesh.TextureCoordinateChannels[0].Select(w => new Vector2(w.X, w.Y)), (a, uv) => (pos: a.First, norm: a.Second, uv))
+                .ForEach(v => vao.Vertices.Add(new() { position = v.pos, normal = v.norm, uv = v.uv }));
+            vao.Indices.AddRange(indices);
+
+            // load the shader
+            program = new("object");
+        }
+
+        protected override void OnRenderFrame(FrameEventArgs args)
+        {
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            SwapBuffers();
+        }
+    }
+
     class Program
     {
         static void Main(string[] args)
         {
+            new Window().Run();
+            return;
+
             const int width = 80, height = 80;
             const int maxCellWidth = 3, maxCellHeight = 3;
 
@@ -135,14 +223,14 @@ namespace dclmgd
             using (new StopwatchPrint("Building the cells' neighbour graph data"))
                 foreach (var cell in cells)
                     foreach (var otherCell in cells)
-                        if (cell != otherCell)
-                            if (((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
-                                    && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1)))
-                                || ((otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
-                                    && (otherCell.X.Between(cell.X, cell.X + cell.Width - 1) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width - 1))))
-                            {
-                                cell.Neighbours.Add(otherCell);
-                            }
+                        //if (cell != otherCell)
+                        if (((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
+                                && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1)))
+                            || ((otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
+                                && (otherCell.X.Between(cell.X, cell.X + cell.Width - 1) || cell.X.Between(otherCell.X, otherCell.X + otherCell.Width - 1))))
+                        {
+                            cell.Neighbours.Add(otherCell);
+                        }
 
             // Dijkstra's algorithm to find the shortest path in the cell graph
             var prevCell = cells.ToDictionary(cell => cell, _ => (Cell)null);
