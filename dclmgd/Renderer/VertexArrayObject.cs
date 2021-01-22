@@ -87,7 +87,10 @@ namespace dclmgd.Renderer
         {
             GL.BindVertexArray(vertexArrayName);
             if (HasIndexBuffer)
+            {
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBufferName);
                 GL.DrawElements(primitiveType, Indices.Length, drawElementsType, 0);
+            }
             else
                 GL.DrawArrays(primitiveType, 0, Vertices.Length);
         }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -69,6 +70,9 @@ namespace dclmgd.Renderer
         public ShaderProgram(string path) : this(path + ".vert", path + ".frag") { }
 
         public void Use() => GL.UseProgram(programName);
+
+        public void Set(string name, Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, true, ref mat.M11);
+        public void Set(string name, ref Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, false, ref mat.M11);
 
         public void UniformBlockBind(string uniformVariableName, int bindingPoint) =>
             GL.UniformBlockBinding(programName, attributeLocations[uniformVariableName], bindingPoint);

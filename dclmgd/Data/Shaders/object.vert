@@ -1,10 +1,10 @@
 ﻿#version 460 core
 
-uniform mat4 worldTransform;
+uniform mat4 world;
 
 layout(std140) uniform matrices
 {
-    mat4 projection, world;
+    mat4 projection, view;
 };
 
 in vec3 position;
@@ -15,6 +15,6 @@ out vec4 fs_color;
 
 void main()
 {
-    gl_Position = vec4(position, 0);
+    gl_Position = projection * view * world * vec4(position, 1);
     fs_color = vec4(1, 1, 1, 1);
 }

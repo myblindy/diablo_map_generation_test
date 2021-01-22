@@ -1,0 +1,4 @@
+{
+  "$schema": "../../Schemas/map_cell.json",
+  "size": "3x3"
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../../Schemas/map_def.json",
+  "name": "Cells",
+  "generator": "room",
+  "width": "60-90",
+  "height": "60-90"
+}

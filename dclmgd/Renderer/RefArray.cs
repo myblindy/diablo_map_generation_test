@@ -27,7 +27,7 @@ namespace dclmgd.Renderer
 
         public void AddRange(T[] source)
         {
-            Unsafe.Copy(memory + Length, ref source[0]);
+            source.CopyTo(new Span<T>(memory + Length, source.Length));
             Length += source.Length;
         }
     }

@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for the maps JSON file format",
+
+  "type": "object",
+
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "generator": {
+      "type": "string",
+      "enum": [ "room" ]
+    },
+    "width": {
+      "type": "string",
+      "pattern": "^\\d+(-\\d+)?$",
+      "description": "A number or a range."
+    },
+    "height": {
+      "type": "string",
+      "pattern": "^\\d+(-\\d+)?$",
+      "description": "A number or a range."
+    }
+  },
+
+  "required": ["name", "generator", "width", "height"]
+}

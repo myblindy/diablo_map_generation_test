@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for the map cell JSON file format",
+
+  "type": "object",
+
+  "properties": {
+    "size": {
+      "type": "string",
+      "pattern": "^\\d+x\\d+$"
+    },
+    "weight": {
+      "type": "number"
+    },
+    "maximumCount": {
+      "type": "integer"
+    },
+    "doors": {
+      "type": "array",
+      "description": "An array of booleans signifying whether each cell on the first row, last column, last row, first column respectively has a door towards north, east, south and west. Must be of size 2 * (width + height).",
+      "items": { "type": "boolean" }
+    }
+  },
+
+  "required": [ "size", "doors" ]
+}
