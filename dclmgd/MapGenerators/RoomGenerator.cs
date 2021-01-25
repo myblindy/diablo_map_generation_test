@@ -20,12 +20,17 @@ namespace dclmgd.MapGenerators
     {
         record Cell(int X, int Y, int Width, int Height, int Index, double Value)
         {
+            BitArray64 doorsNorth = new(Width);
+            BitArray64 doorsSouth = new(Width);
+            BitArray64 doorsEast = new(Height);
+            BitArray64 doorsWest = new(Height);
+
             public List<Cell> Neighbours { get; } = new();
 
-            public bool[] DoorsNorth { get; } = new bool[Width];
-            public bool[] DoorsSouth { get; } = new bool[Width];
-            public bool[] DoorsEast { get; } = new bool[Height];
-            public bool[] DoorsWest { get; } = new bool[Height];
+            public ref BitArray64 DoorsNorth => ref doorsNorth;
+            public ref BitArray64 DoorsSouth => ref doorsSouth;
+            public ref BitArray64 DoorsEast => ref doorsEast;
+            public ref BitArray64 DoorsWest => ref doorsWest;
         }
 
         protected RoomGenerator(MapTemplateData data)
@@ -116,7 +121,7 @@ namespace dclmgd.MapGenerators
                 var cellDistance = new double[cells.Count];
                 cellDistance.SetAll(idx => idx == startCellIndex ? 0 : double.PositiveInfinity);
 
-                var visitedCells = new BitArray64(cells.Count);
+                var visitedCells = new BitList64(cells.Count);
 
                 do
                 {
@@ -155,6 +160,8 @@ namespace dclmgd.MapGenerators
                     selectedCells.Add(cell);
                 selectedCellsDirectPath = selectedCells.ToArray();
 
+                var neighboursSet = new HashSet<int>();
+
                 for (var extraRoomsCount = rng.Next(width * height / 15, width * height / 5); extraRoomsCount >= 0; --extraRoomsCount)
                 {
                     Cell cellToAdd = default;
@@ -163,10 +170,14 @@ namespace dclmgd.MapGenerators
                     do
                     {
                         var selectedCell = selectedCells[rng.Next(selectedCells.Count)];
-                        var availableNeighbours = selectedCell.Neighbours.Except(selectedCells).ToList();
-                        if (availableNeighbours.Any())
+
+                        neighboursSet.Clear();
+                        neighboursSet.AddRange(selectedCell.Neighbours.Select(c => c.Index));
+                        neighboursSet.RemoveRange(selectedCells.Select(c => c.Index));
+
+                        if (neighboursSet.Any())
                         {
-                            cellToAdd = availableNeighbours[rng.Next(availableNeighbours.Count)];
+                            cellToAdd = cells[rng.Next(neighboursSet)];
                             extraLinks.Add((selectedCell, cellToAdd));
                         }
                     } while (cellToAdd is null);

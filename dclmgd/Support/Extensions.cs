@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-
+using System.Linq;
 using Matrix4x4 = System.Numerics.Matrix4x4;
 
 namespace dclmgd.Support
@@ -17,6 +17,47 @@ namespace dclmgd.Support
 
         public static int Next(this Random rng, IncRange range) =>
             rng.Next(range.Start, range.End + 1);
+
+        public static T Next<T>(this Random rng, IList<T> list) =>
+            list[rng.Next(list.Count)];
+
+        public static T Next<T>(this Random rng, ISet<T> set) =>
+            set.ElementAt(rng.Next(set.Count));
+
+        static (T foundVal, int wantedIdx) NextRandom<T>(Random rng, Func<(T, bool)> next, int idx)
+        {
+            var (val, exists) = next();
+
+            if (!exists)
+                return (default, rng.Next(idx));
+
+            var (foundVal, wantedIdx) = NextRandom(rng, next, idx + 1);
+            return wantedIdx == idx ? (val, wantedIdx) : (default, wantedIdx);
+        }
+
+        public static T Next<T>(this Random rng, IEnumerable<T> list)
+        {
+            using var enumerator = list.GetEnumerator();
+            return NextRandom(rng, () => { var hasNext = enumerator.MoveNext(); return hasNext ? (enumerator.Current, true) : (default, false); }, 0).foundVal;
+        }
+
+        public static void AddRange<T>(this IList<T> list, IEnumerable<T> items)
+        {
+            foreach (var item in items)
+                list.Add(item);
+        }
+
+        public static void AddRange<T>(this ISet<T> set, IEnumerable<T> items)
+        {
+            foreach (var item in items)
+                set.Add(item);
+        }
+
+        public static void RemoveRange<T>(this ISet<T> set, IEnumerable<T> items)
+        {
+            foreach (var item in items)
+                set.Remove(item);
+        }
 
         public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 assimpMat4x4) =>
             new(assimpMat4x4.A1, assimpMat4x4.A2, assimpMat4x4.A3, assimpMat4x4.A4,

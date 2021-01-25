@@ -50,7 +50,7 @@ namespace dclmgd
 
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             var gen = MapGenerator.Generate("cells");
         }
