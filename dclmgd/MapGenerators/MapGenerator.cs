@@ -43,9 +43,13 @@ namespace dclmgd.MapGenerators
             public int MaximumCount { get; set; } = int.MaxValue;
             public bool[] Doors { get; set; }
 
+            [JsonIgnore]
             public ReadOnlySpan<bool> DoorsNorth => Doors.Slice(0, Size.Width);
+            [JsonIgnore]
             public ReadOnlySpan<bool> DoorsEast => Doors.Slice(Size.Width, Size.Height);
+            [JsonIgnore]
             public ReadOnlySpan<bool> DoorsSouth => Doors.Slice(Size.Width + Size.Height, Size.Width);
+            [JsonIgnore]
             public ReadOnlySpan<bool> DoorsWest => Doors.Slice(2 * Size.Width + Size.Height, Size.Height);
         }
 

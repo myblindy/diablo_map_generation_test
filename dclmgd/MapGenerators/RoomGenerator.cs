@@ -11,6 +11,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using static MoreLinq.Extensions.ForEachExtension;
+using static MoreLinq.Extensions.LagExtension;
+
 namespace dclmgd.MapGenerators
 {
     class RoomGenerator : MapGenerator
@@ -18,6 +21,11 @@ namespace dclmgd.MapGenerators
         record Cell(int X, int Y, int Width, int Height, int Index, double Value)
         {
             public List<Cell> Neighbours { get; } = new();
+
+            public bool[] DoorsNorth { get; } = new bool[Width];
+            public bool[] DoorsSouth { get; } = new bool[Width];
+            public bool[] DoorsEast { get; } = new bool[Height];
+            public bool[] DoorsWest { get; } = new bool[Height];
         }
 
         protected RoomGenerator(MapTemplateData data)
@@ -138,12 +146,14 @@ namespace dclmgd.MapGenerators
             }
 
             // select the cells along the path, and some other random cells linked to some of them, possibly recursive
+            Cell[] selectedCellsDirectPath;
             var selectedCells = new List<Cell>();
             var extraLinks = new List<(Cell c1, Cell c2)>();
             using (new StopwatchMessageList("Selecting cells", this))
             {
                 for (var cell = endCell; cell is not null; cell = prevCell[cell.Index])
                     selectedCells.Add(cell);
+                selectedCellsDirectPath = selectedCells.ToArray();
 
                 for (var extraRoomsCount = rng.Next(width * height / 15, width * height / 5); extraRoomsCount >= 0; --extraRoomsCount)
                 {
@@ -167,7 +177,7 @@ namespace dclmgd.MapGenerators
 
             // link a few more neighbours 
             using (new StopwatchMessageList("Linking extra neighbours", this))
-                for (var extraLinksCount = rng.Next(width * height / 40, width * height / 20); extraLinksCount >= 0; --extraLinksCount)
+                for (var extraLinksCount = rng.Next(width * height / 60, width * height / 40); extraLinksCount >= 0; --extraLinksCount)
                     while (true)
                     {
                         // select a random pair of selected cells and make sure they're not already linked
@@ -180,15 +190,70 @@ namespace dclmgd.MapGenerators
                         }
                     }
 
+            // for each linked room, select a door
+            using (new StopwatchMessageList("Adding doors", this))
+                selectedCellsDirectPath.Lag(1, (c1, c2) => (c1, c2)).Skip(1).Concat(extraLinks).ForEach(w =>
+                {
+                    var c1 = w.c1;
+                    var c2 = w.c2;
+
+                    if (c1.X > c2.X) (c1, c2) = (c2, c1);
+                    if (c1.X + c1.Width == c2.X)
+                    {
+                        // east of c1, west of c2
+                        int offset1, offset2, length;
+                        if (c1.Y <= c2.Y && c1.Y + c1.Height >= c2.Y + c2.Height)                      // [c1 [c2 c2] c1]
+                            (offset1, offset2, length) = (c2.Y - c1.Y, 0, c2.Height);
+                        else if (c2.Y <= c1.Y && c2.Y + c2.Height >= c1.Y + c1.Height)                 // [c2 [c1 c1] c2]
+                            (offset1, offset2, length) = (0, c1.Y - c2.Y, c1.Height);
+                        else if (c2.Y <= c1.Y && c1.Y + c1.Height >= c2.Y + c2.Height)                 // [c2 [c1 c2] c1]
+                            (offset1, offset2, length) = (0, c1.Y - c2.Y, c2.Y + c2.Height - c1.Y);
+                        else if (c1.Y <= c2.Y && c2.Y + c2.Height >= c1.Y + c1.Height)                 // [c1 [c2 c1] c2]
+                            (offset1, offset2, length) = (c2.Y - c1.Y, 0, c1.Y + c1.Height - c2.Y);
+                        else
+                            throw new InvalidOperationException();
+
+                        var doorIdx = rng.Next(length);
+                        c1.DoorsEast[doorIdx + offset1] = true;
+                        c2.DoorsWest[doorIdx + offset2] = true;
+                    }
+                    else
+                    {
+                        if (c1.Y > c2.Y) (c1, c2) = (c2, c1);
+                        if (c1.Y + c1.Height == c2.Y)
+                        {
+                            // south of c1, north of c2
+                            int offset1, offset2, length;
+                            if (c1.X <= c2.X && c1.X + c1.Width >= c2.X + c2.Width)                      // [c1 [c2 c2] c1]
+                                (offset1, offset2, length) = (c2.X - c1.X, 0, c2.Width);
+                            else if (c2.X <= c1.X && c2.X + c2.Width >= c1.X + c1.Width)                 // [c2 [c1 c1] c2]
+                                (offset1, offset2, length) = (0, c1.X - c2.X, c1.Width);
+                            else if (c2.X <= c1.X && c1.X + c1.Width >= c2.X + c2.Width)                  // [c2 [c1 c2] c1]
+                                (offset1, offset2, length) = (0, c1.X - c2.X, c2.X + c2.Width - c1.X);
+                            else if (c1.X <= c2.X && c2.X + c2.Width >= c1.X + c1.Width)                  // [c1 [c2 c1] c2]
+                                (offset1, offset2, length) = (c2.X - c1.X, 0, c1.X + c1.Width - c2.X);
+                            else
+                                throw new InvalidOperationException();
+
+                            var doorIdx = rng.Next(length);
+                            c1.DoorsSouth[doorIdx + offset1] = true;
+                            c2.DoorsNorth[doorIdx + offset2] = true;
+                        }
+                        else
+                            throw new InvalidOperationException();
+                    }
+                });
+
             // draw the output
-            const int drawScale = 15;
-            const float graphLineThickness = 4, borderThickness = 2;
+            const int drawScale = 20;
+            const float graphLineThickness = 4, borderThickness = 2, doorWidth = 8;
             var img = new Image<Rgba32>(width * drawScale, height * drawScale);
             using (new StopwatchMessageList("Rendering the output", this))
                 img.Mutate(ctx =>
                 {
                     ctx.Clear(Color.White);
 
+                    // rooms
                     selectedCells.ForEach(cell =>
                     {
                         var rect = new RectangleF(cell.X * drawScale, cell.Y * drawScale, cell.Width * drawScale, cell.Height * drawScale);
@@ -209,6 +274,15 @@ namespace dclmgd.MapGenerators
 
                     // extra links
                     extraLinks.ForEach(w => ctx.DrawLines(Color.Blue, graphLineThickness, getCenter(w.c1), getCenter(w.c2)));
+
+                    // doors
+                    selectedCells.ForEach(cell =>
+                        cell.DoorsNorth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, cell.Y * drawScale, doorWidth, doorWidth / 2)))
+                            .Concat(cell.DoorsSouth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, (cell.Y + cell.Height) * drawScale - doorWidth / 2, doorWidth, doorWidth / 2))))
+                            .Concat(cell.DoorsWest.Select((v, idx) => (v, rc: new RectangleF(cell.X * drawScale, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
+                            .Concat(cell.DoorsEast.Select((v, idx) => (v, rc: new RectangleF((cell.X + cell.Width) * drawScale - doorWidth / 2, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
+                            .Where(w => w.v)
+                            .ForEach(w => ctx.Fill(Color.LimeGreen, w.rc)));
 
                     // status text
                     ctx.DrawText(new TextGraphicsOptions() { TextOptions = { HorizontalAlignment = HorizontalAlignment.Right } },
