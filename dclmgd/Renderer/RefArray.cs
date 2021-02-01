@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace dclmgd.Renderer
@@ -29,6 +30,12 @@ namespace dclmgd.Renderer
         {
             source.CopyTo(new Span<T>(memory + Length, source.Length));
             Length += source.Length;
+        }
+
+        public void AddRange(List<T> source)
+        {
+            foreach (var item in source)
+                Add(item);
         }
     }
 }

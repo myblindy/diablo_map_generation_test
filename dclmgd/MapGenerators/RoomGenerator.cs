@@ -18,14 +18,14 @@ namespace dclmgd.MapGenerators
 {
     class RoomGenerator : MapGenerator
     {
-        record Cell(int X, int Y, int Width, int Height, int Index, double Value)
+        record InternalCell(int X, int Y, int Width, int Height, int Index, double Value)
         {
             BitArray64 doorsNorth = new(Width);
             BitArray64 doorsSouth = new(Width);
             BitArray64 doorsEast = new(Height);
             BitArray64 doorsWest = new(Height);
 
-            public List<Cell> Neighbours { get; } = new();
+            public List<InternalCell> Neighbours { get; } = new();
 
             public ref BitArray64 DoorsNorth => ref doorsNorth;
             public ref BitArray64 DoorsSouth => ref doorsSouth;
@@ -46,11 +46,11 @@ namespace dclmgd.MapGenerators
                 .ToHashSet();
 
             var cellData = new double[width, height];
-            var cells = new List<Cell>();
+            var cells = new List<InternalCell>();
 
             int startPointX = rng.Next(width / 6), startPointY = rng.Next(height / 6);
             int endPointX = rng.Next(width * 5 / 6, width), endPointY = rng.Next(height * 5 / 6, height);
-            Cell startCell = default, endCell = default;
+            InternalCell startCell = default, endCell = default;
             int startCellIndex = -1, endCellIndex = -1;
 
             // build the cells
@@ -90,7 +90,7 @@ namespace dclmgd.MapGenerators
                             for (int yp = y; yp < y + cellSize.Height; ++yp)
                                 cellData[xp, yp] = cellValue;
 
-                        var cell = new Cell(x, y, cellSize.Width, cellSize.Height, cells.Count, cellValue);
+                        var cell = new InternalCell(x, y, cellSize.Width, cellSize.Height, cells.Count, cellValue);
                         cells.Add(cell);
 
                         if (startPointX.Between(cell.X, cell.X + cell.Width - 1) && startPointY.Between(cell.Y, cell.Y + cell.Height - 1))
@@ -105,7 +105,6 @@ namespace dclmgd.MapGenerators
             using (new StopwatchMessageList("Building the cells' neighbour graph data", this))
                 foreach (var cell in cells)
                     foreach (var otherCell in cells)
-                        // if (cell != otherCell)
                         if ((otherCell.X + otherCell.Width == cell.X || cell.X + cell.Width == otherCell.X)
                                 && (otherCell.Y.Between(cell.Y, cell.Y + cell.Height - 1) || cell.Y.Between(otherCell.Y, otherCell.Y + otherCell.Height - 1))
                             || (otherCell.Y + otherCell.Height == cell.Y || cell.Y + cell.Height == otherCell.Y)
@@ -115,7 +114,7 @@ namespace dclmgd.MapGenerators
                         }
 
             // Dijkstra's algorithm to find the shortest path in the cell graph
-            var prevCell = new Cell[cells.Count];
+            var prevCell = new InternalCell[cells.Count];
             using (new StopwatchMessageList("Running the shortest path algorithm", this))
             {
                 var cellDistance = new double[cells.Count];
@@ -126,7 +125,7 @@ namespace dclmgd.MapGenerators
                 do
                 {
                     // current cell is the smallest unvisited tentative distance cell 
-                    Cell currentCell = null;
+                    InternalCell currentCell = null;
                     double currentCellCost = double.PositiveInfinity;
                     for (int cellDistanceIdx = 0; cellDistanceIdx < cellDistance.Length; ++cellDistanceIdx)
                         if (cellDistance[cellDistanceIdx] < currentCellCost && !visitedCells[cellDistanceIdx])
@@ -151,9 +150,9 @@ namespace dclmgd.MapGenerators
             }
 
             // select the cells along the path, and some other random cells linked to some of them, possibly recursive
-            Cell[] selectedCellsDirectPath;
-            var selectedCells = new List<Cell>();
-            var extraLinks = new List<(Cell c1, Cell c2)>();
+            InternalCell[] selectedCellsDirectPath;
+            var selectedCells = new List<InternalCell>();
+            var extraLinks = new List<(InternalCell c1, InternalCell c2)>();
             using (new StopwatchMessageList("Selecting cells", this))
             {
                 for (var cell = endCell; cell is not null; cell = prevCell[cell.Index])
@@ -164,7 +163,7 @@ namespace dclmgd.MapGenerators
 
                 for (var extraRoomsCount = rng.Next(width * height / 15, width * height / 5); extraRoomsCount >= 0; --extraRoomsCount)
                 {
-                    Cell cellToAdd = default;
+                    InternalCell cellToAdd = default;
 
                     // select a random cell to pull a neighbor
                     do
@@ -255,53 +254,69 @@ namespace dclmgd.MapGenerators
                     }
                 });
 
-            // draw the output
-            const int drawScale = 20;
-            const float graphLineThickness = 4, borderThickness = 2, doorWidth = 8;
-            var img = new Image<Rgba32>(width * drawScale, height * drawScale);
-            using (new StopwatchMessageList("Rendering the output", this))
-                img.Mutate(ctx =>
+            //    // draw the output
+            //    const int drawScale = 20;
+            //    const float graphLineThickness = 4, borderThickness = 2, doorWidth = 8;
+            //    var img = new Image<Rgba32>(width * drawScale, height * drawScale);
+            //    using (new StopwatchMessageList("Rendering the output", this))
+            //        img.Mutate(ctx =>
+            //        {
+            //            ctx.Clear(Color.White);
+
+            //            // rooms
+            //            selectedCells.ForEach(cell =>
+            //            {
+            //                var rect = new RectangleF(cell.X * drawScale, cell.Y * drawScale, cell.Width * drawScale, cell.Height * drawScale);
+            //                ctx.Fill(new Color(new Rgba32((float)cell.Value, (float)cell.Value, (float)cell.Value)), rect)
+            //                    .Draw(Color.Pink, borderThickness, rect);
+            //            });
+
+            //            static PointF getCenter(InternalCell cell) => new((cell.X + cell.Width / 2.0f) * drawScale, (cell.Y + cell.Height / 2.0f) * drawScale);
+
+            //            // room graph
+            //            var lastPoint = getCenter(endCell);
+            //            for (var cell = prevCell[endCell.Index]; cell is not null; cell = prevCell[cell.Index])
+            //            {
+            //                var currentPoint = getCenter(cell);
+            //                ctx.DrawLines(Color.Red, graphLineThickness, lastPoint, currentPoint);
+            //                lastPoint = currentPoint;
+            //            }
+
+            //            // extra links
+            //            extraLinks.ForEach(w => ctx.DrawLines(Color.Blue, graphLineThickness, getCenter(w.c1), getCenter(w.c2)));
+
+            //            // doors
+            //            selectedCells.ForEach(cell =>
+            //                cell.DoorsNorth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, cell.Y * drawScale, doorWidth, doorWidth / 2)))
+            //                    .Concat(cell.DoorsSouth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, (cell.Y + cell.Height) * drawScale - doorWidth / 2, doorWidth, doorWidth / 2))))
+            //                    .Concat(cell.DoorsWest.Select((v, idx) => (v, rc: new RectangleF(cell.X * drawScale, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
+            //                    .Concat(cell.DoorsEast.Select((v, idx) => (v, rc: new RectangleF((cell.X + cell.Width) * drawScale - doorWidth / 2, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
+            //                    .Where(w => w.v)
+            //                    .ForEach(w => ctx.Fill(Color.LimeGreen, w.rc)));
+
+            //            // status text
+            //            ctx.DrawText(new TextGraphicsOptions() { TextOptions = { HorizontalAlignment = HorizontalAlignment.Right } },
+            //                 string.Join("\n", log), SystemFonts.CreateFont("Segoe UI", 24, FontStyle.Bold), Color.Black, new(width * drawScale, 0));
+            //        });
+
+            //    img.SaveAsPng("output.png");
+            //    Process.Start(new ProcessStartInfo("output.png") { UseShellExecute = true });
+
+            {
+                // compute the bounding box of the map
+                int minX = int.MaxValue, maxX = 0, minY = int.MaxValue, maxY = 0;
+                foreach (var cell in selectedCells)
                 {
-                    ctx.Clear(Color.White);
+                    if (cell.X < minX) minX = cell.X;
+                    if (cell.X + cell.Width > maxX) maxX = cell.X + cell.Width;
+                    if (cell.Y < minY) minY = cell.Y;
+                    if (cell.Y + cell.Height > maxY) maxY = cell.Y + cell.Height;
+                }
 
-                    // rooms
-                    selectedCells.ForEach(cell =>
-                    {
-                        var rect = new RectangleF(cell.X * drawScale, cell.Y * drawScale, cell.Width * drawScale, cell.Height * drawScale);
-                        ctx.Fill(new Color(new Rgba32((float)cell.Value, (float)cell.Value, (float)cell.Value)), rect)
-                            .Draw(Color.Pink, borderThickness, rect);
-                    });
-
-                    static PointF getCenter(Cell cell) => new((cell.X + cell.Width / 2.0f) * drawScale, (cell.Y + cell.Height / 2.0f) * drawScale);
-
-                    // room graph
-                    var lastPoint = getCenter(endCell);
-                    for (var cell = prevCell[endCell.Index]; cell is not null; cell = prevCell[cell.Index])
-                    {
-                        var currentPoint = getCenter(cell);
-                        ctx.DrawLines(Color.Red, graphLineThickness, lastPoint, currentPoint);
-                        lastPoint = currentPoint;
-                    }
-
-                    // extra links
-                    extraLinks.ForEach(w => ctx.DrawLines(Color.Blue, graphLineThickness, getCenter(w.c1), getCenter(w.c2)));
-
-                    // doors
-                    selectedCells.ForEach(cell =>
-                        cell.DoorsNorth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, cell.Y * drawScale, doorWidth, doorWidth / 2)))
-                            .Concat(cell.DoorsSouth.Select((v, idx) => (v, rc: new RectangleF((cell.X + idx + .5f) * drawScale - doorWidth / 2, (cell.Y + cell.Height) * drawScale - doorWidth / 2, doorWidth, doorWidth / 2))))
-                            .Concat(cell.DoorsWest.Select((v, idx) => (v, rc: new RectangleF(cell.X * drawScale, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
-                            .Concat(cell.DoorsEast.Select((v, idx) => (v, rc: new RectangleF((cell.X + cell.Width) * drawScale - doorWidth / 2, (cell.Y + idx + .5f) * drawScale - doorWidth / 2, doorWidth / 2, doorWidth))))
-                            .Where(w => w.v)
-                            .ForEach(w => ctx.Fill(Color.LimeGreen, w.rc)));
-
-                    // status text
-                    ctx.DrawText(new TextGraphicsOptions() { TextOptions = { HorizontalAlignment = HorizontalAlignment.Right } },
-                         string.Join("\n", log), SystemFonts.CreateFont("Segoe UI", 24, FontStyle.Bold), Color.Black, new(width * drawScale, 0));
-                });
-
-            img.SaveAsPng("output.png");
-            Process.Start(new ProcessStartInfo("output.png") { UseShellExecute = true });
+                // return the result
+                MapCells = selectedCells.Select(c => new MapCell(c.X - minX, c.Y - minY, c.Width, c.Height, c.DoorsNorth, c.DoorsSouth, c.DoorsEast, c.DoorsWest)).ToArray();
+                Size = new(maxX - minX, maxY - minY);
+            }
         }
     }
 }

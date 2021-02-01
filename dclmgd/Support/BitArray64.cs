@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace dclmgd.Support
 {
-    struct BitArray64 : IEnumerable<bool>
+    public struct BitArray64 : IEnumerable<bool>
     {
         ulong value;
         readonly int length;

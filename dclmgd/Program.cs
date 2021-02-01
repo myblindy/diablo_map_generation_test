@@ -52,7 +52,7 @@ namespace dclmgd
     {
         static void Main()
         {
-            var gen = MapGenerator.Generate("cells");
+            new Window().Run();
         }
     }
 }

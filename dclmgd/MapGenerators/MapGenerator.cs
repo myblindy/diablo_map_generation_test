@@ -13,8 +13,15 @@ using System.Threading.Tasks;
 
 namespace dclmgd.MapGenerators
 {
+    public record MapCell(int X, int Y, int Width, int Height, BitArray64 DoorsNorth, BitArray64 DoorsSouth, BitArray64 DoorsEast, BitArray64 DoorsWest)
+    {
+    }
+
     abstract class MapGenerator
     {
+        public MapCell[] MapCells { get; protected set; }
+        public IntSize Size { get; protected set; }
+
         protected static readonly Dictionary<string, Func<MapTemplateData, MapGenerator>> generators =
             Assembly.GetEntryAssembly().GetTypes()
                 .Where(t => t.IsAssignableTo(typeof(MapGenerator)))
