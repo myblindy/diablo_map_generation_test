@@ -122,16 +122,32 @@ namespace dclmgd.Renderer
                 }
             }
 
-            const float cellMargin = 0.1f, cellHeight = 2f;
+            const float cellHeight = 2f;
             Vector4 floorColor = new(.5f, 1, .5f, 1), wallColor = new(1, 0, 1, 1);
             mapGenerator.MapCells.ForEach(c =>
             {
-                quad(new(c.X + cellMargin, c.Y + cellMargin, 0), new(c.X + c.Width - cellMargin, c.Y + c.Height - cellMargin, 0), new(0, 0, 1), floorColor);
+                quad(new(c.X, c.Y, 0), new(c.X + c.Width, c.Y + c.Height, 0), new(0, 0, 1), floorColor);
 
-                quad(new(c.X + cellMargin, c.Y + cellMargin, 0), new(c.X + c.Width - cellMargin, c.Y + cellMargin, cellHeight), new(), wallColor);
-                quad(new(c.X + cellMargin, c.Y + c.Height - cellMargin, 0), new(c.X + c.Width - cellMargin, c.Y + c.Height - cellMargin, cellHeight), new(), wallColor);
-                quad(new(c.X + cellMargin, c.Y + cellMargin, 0), new(c.X + cellMargin, c.Y + c.Height - cellMargin, cellHeight), new(), wallColor);
-                quad(new(c.X + c.Width - cellMargin, c.Y + cellMargin, 0), new(c.X + c.Width - cellMargin, c.Y + c.Height - cellMargin, cellHeight), new(), wallColor);
+                for (int i = 0; i < c.Width; ++i)
+                {
+                    quad(new(c.X + i, c.Y, 0), new(c.X + i + 1 / 3f, c.Y, cellHeight), new(), wallColor);
+                    if (!c.DoorsNorth[i])
+                        quad(new(c.X + i + 1 / 3f, c.Y, 0), new(c.X + i + 2 / 3f, c.Y, cellHeight), new(), wallColor);
+                    quad(new(c.X + i + 2 / 3f, c.Y, 0), new(c.X + i + 1, c.Y, cellHeight), new(), wallColor);
+                }
+                for (int i = 0; i < c.Width; ++i)
+                    if (!c.DoorsSouth[i])
+                        quad(new(c.X + i, c.Y + c.Height, 0), new(c.X + i + 1, c.Y + c.Height, cellHeight), new(), wallColor);
+                for (int i = 0; i < c.Height; ++i)
+                {
+                    quad(new(c.X, c.Y + i, 0), new(c.X, c.Y + i + 1 / 3f, cellHeight), new(), wallColor);
+                    if (!c.DoorsWest[i])
+                        quad(new(c.X, c.Y + i + 1 / 3f, 0), new(c.X, c.Y + i + 2 / 3f, cellHeight), new(), wallColor);
+                    quad(new(c.X, c.Y + i + 2 / 3f, 0), new(c.X, c.Y + i + 1, cellHeight), new(), wallColor);
+                }
+                for (int i = 0; i < c.Height; ++i)
+                    if (!c.DoorsEast[i])
+                        quad(new(c.X + c.Width, c.Y + i, 0), new(c.X + c.Width, c.Y + i + 1, cellHeight), new(), wallColor);
             });
 
             vao = new(false, vertices.Count, 0);
@@ -149,6 +165,8 @@ namespace dclmgd.Renderer
             program = new("walls");
             program.UniformBlockBind("matrices", 0);
             program.Set("world", Matrix4x4.Identity);
+
+            GL.Enable(EnableCap.DepthTest);
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
