@@ -74,6 +74,8 @@ namespace dclmgd.Renderer
         public void Set(string name, Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, true, ref mat.M11);
         public void Set(string name, ref Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, false, ref mat.M11);
 
+        public void Set(string name, int val) => GL.ProgramUniform1(programName, attributeLocations[name], val);
+
         public void UniformBlockBind(string uniformVariableName, int bindingPoint) =>
             GL.UniformBlockBinding(programName, attributeLocations[uniformVariableName], bindingPoint);
     }

@@ -14,8 +14,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="morelinq" Version="3.3.2" />
-    <PackageReference Include="OpenTK.Graphics" Version="4.4.0" />
-    <PackageReference Include="OpenTK.Windowing.Desktop" Version="4.4.0" />
+    <PackageReference Include="OpenTK.Graphics" Version="4.5.0" />
+    <PackageReference Include="OpenTK.Windowing.Desktop" Version="4.5.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.2" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta11" />
   </ItemGroup>

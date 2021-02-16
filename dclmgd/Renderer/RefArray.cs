@@ -32,7 +32,7 @@ namespace dclmgd.Renderer
             Length += source.Length;
         }
 
-        public void AddRange(List<T> source)
+        public void AddRange(IEnumerable<T> source)
         {
             foreach (var item in source)
                 Add(item);

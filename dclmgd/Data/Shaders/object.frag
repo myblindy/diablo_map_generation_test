@@ -1,10 +1,12 @@
 ﻿#version 460 core
 
-in vec4 fs_color;
+uniform sampler2D diffuseTexture;
+
+in vec2 fs_uv;
 
 out vec4 color;
 
 void main()
 {
-    color = fs_color;
+    color = texture(diffuseTexture, fs_uv);
 }
