@@ -1,4 +1,5 @@
-﻿using dclmgd.MapGenerators;
+﻿using Assimp;
+using dclmgd.MapGenerators;
 using dclmgd.Renderer;
 using dclmgd.Support;
 using JM.LinqFaster;
