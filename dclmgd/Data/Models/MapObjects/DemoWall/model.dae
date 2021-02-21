@@ -97,7 +97,7 @@
     </material>
   </library_materials>
   <library_geometries>
-    <geometry id="Plane-mesh" name="Plane">
+    <geometry id="Plane-mesh" name="Wall">
       <mesh>
         <source id="Plane-mesh-positions">
           <float_array id="Plane-mesh-positions-array" count="18">-1 -1 0 1 -1 0 -1 1 0 1 1 0 1 -1 0 1 1 0</float_array>
@@ -139,7 +139,7 @@
         </triangles>
       </mesh>
     </geometry>
-    <geometry id="Plane_001-mesh" name="Plane.001">
+    <geometry id="Plane_001-mesh" name="Floor">
       <mesh>
         <source id="Plane_001-mesh-positions">
           <float_array id="Plane_001-mesh-positions-array" count="18">-1 -1 0 1 -1 0 -1 1 0 1 1 0 1 -1 0 1 1 0</float_array>
@@ -185,7 +185,7 @@
   <library_visual_scenes>
     <visual_scene id="Scene" name="Scene">
       <node id="Wall" name="Wall" type="NODE">
-        <matrix sid="transform">4 0 0 0 0 1.50996e-7 -1 0 0 2 7.54979e-8 2 0 0 0 1</matrix>
+        <matrix sid="transform">0.000000 0.000000 -4.000000 -8.000000 -16.000000 0.000000 -0.000000 0.000000 0.000000 8.000000 0.000000 8.000000 0.000000 0.000000 0.000000 1.000000</matrix>
         <instance_geometry url="#Plane-mesh" name="Wall">
           <bind_material>
             <technique_common>
@@ -196,12 +196,8 @@
           </bind_material>
         </instance_geometry>
       </node>
-      <node id="Sun" name="Sun" type="NODE">
-        <matrix sid="transform">0.9682973 0.1722488 0.1809162 0 -0.2497793 0.6770735 0.6922296 6.634266 -0.003257867 -0.7154732 0.6986326 6.583375 0 0 0 1</matrix>
-        <instance_light url="#Sun-light"/>
-      </node>
       <node id="Floor" name="Floor" type="NODE">
-        <matrix sid="transform">4 0 0 0 0 2 0 1.986893 0 0 1 0.002436876 0 0 0 1</matrix>
+        <matrix sid="transform">0.000000 -8.000000 0.000000 0.000000 16.000000 0.000000 0.000000 0.000000 0.000000 0.000000 4.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
         <instance_geometry url="#Plane_001-mesh" name="Floor">
           <bind_material>
             <technique_common>

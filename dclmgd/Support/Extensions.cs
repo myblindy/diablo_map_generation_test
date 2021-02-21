@@ -59,6 +59,17 @@ namespace dclmgd.Support
                 set.Remove(item);
         }
 
+        public static T[] ToArray<T>(this IEnumerable<T> source, int length)
+        {
+            var arr = new T[length];
+
+            int idx = 0;
+            foreach (var item in source)
+                arr[idx++] = item;
+
+            return arr;
+        }
+
         public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 assimpMat4x4) =>
             new(assimpMat4x4.A1, assimpMat4x4.A2, assimpMat4x4.A3, assimpMat4x4.A4,
                 assimpMat4x4.B1, assimpMat4x4.B2, assimpMat4x4.B3, assimpMat4x4.B4,

@@ -14,40 +14,73 @@ namespace dclmgd.Renderer
 
     class VertexArrayObject<TVertex, TIndex> where TVertex : unmanaged where TIndex : unmanaged
     {
-        public unsafe VertexArrayObject(bool hasIndexBuffer, int vertexCapacity, int indexCapacity)
+        public static unsafe VertexArrayObject<TVertex, TIndex> CreateDynamic(bool hasIndexBuffer, int vertexCapacity, int indexCapacity)
         {
-            HasIndexBuffer = hasIndexBuffer;
-            VertexCapacity = vertexCapacity;
-            IndexCapacity = indexCapacity;
-
-            GL.CreateBuffers(1, out vertexBufferName);
+            GL.CreateBuffers(1, out uint vertexBufferName);
             GL.NamedBufferStorage(vertexBufferName, Unsafe.SizeOf<TVertex>() * vertexCapacity, IntPtr.Zero,
                 BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapCoherentBit | BufferStorageFlags.DynamicStorageBit);
-            Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity,
-                BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), vertexCapacity);
 
+            GL.CreateVertexArrays(1, out uint vertexArrayName);
+            GL.VertexArrayVertexBuffer(vertexArrayName, 0, vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
+            SetupFields(vertexArrayName);
+
+            uint indexBufferName = default;
             if (hasIndexBuffer)
             {
                 GL.CreateBuffers(1, out indexBufferName);
                 GL.NamedBufferStorage(indexBufferName, Unsafe.SizeOf<TIndex>() * indexCapacity, IntPtr.Zero,
                     BufferStorageFlags.MapWriteBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapCoherentBit | BufferStorageFlags.DynamicStorageBit);
-                Indices = new((TIndex*)GL.MapNamedBufferRange(indexBufferName, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity,
-                    BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), indexCapacity);
-
-                drawElementsType =
-                    typeof(TIndex) == typeof(byte) ? DrawElementsType.UnsignedByte :
-                    typeof(TIndex) == typeof(uint) ? DrawElementsType.UnsignedInt :
-                    typeof(TIndex) == typeof(ushort) ? DrawElementsType.UnsignedShort :
-                    typeof(TIndex) == typeof(sbyte) ? DrawElementsType.UnsignedByte :
-                    typeof(TIndex) == typeof(int) ? DrawElementsType.UnsignedInt :
-                    typeof(TIndex) == typeof(short) ? DrawElementsType.UnsignedShort :
-                    throw new InvalidOperationException();
             }
 
-            GL.CreateVertexArrays(1, out vertexArrayName);
-            GL.VertexArrayVertexBuffer(vertexArrayName, 0, vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
+            return new()
+            {
+                HasIndexBuffer = hasIndexBuffer,
+                VertexCapacity = vertexCapacity,
+                IndexCapacity = indexCapacity,
+                VertexBufferName = vertexBufferName,
+                IndexBufferName = indexBufferName,
+                Vertices = new((TVertex*)GL.MapNamedBufferRange(vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>() * vertexCapacity,
+                    BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), vertexCapacity),
+                Indices = !hasIndexBuffer ? default : new((TIndex*)GL.MapNamedBufferRange(indexBufferName, IntPtr.Zero, Unsafe.SizeOf<TIndex>() * indexCapacity,
+                    BufferAccessMask.MapWriteBit | BufferAccessMask.MapReadBit | BufferAccessMask.MapPersistentBit | BufferAccessMask.MapCoherentBit).ToPointer(), indexCapacity),
+                DrawElementsType = !hasIndexBuffer ? default : drawElementsType[typeof(TIndex)],
+                VertexArrayName = vertexArrayName,
+            };
+        }
 
-            int idx = 0, offset = 0;
+        public static unsafe VertexArrayObject<TVertex, TIndex> CreateStatic(TVertex[] vertices, TIndex[] indices = null)
+        {
+            var (vertexCount, indexCount) = (vertices.Length, indices?.Length ?? 0);
+
+            GL.CreateBuffers(1, out uint vertexBufferName);
+            GL.NamedBufferStorage(vertexBufferName, Unsafe.SizeOf<TVertex>() * vertexCount, ref vertices[0], BufferStorageFlags.None);
+
+            GL.CreateVertexArrays(1, out uint vertexArrayName);
+            GL.VertexArrayVertexBuffer(vertexArrayName, 0, vertexBufferName, IntPtr.Zero, Unsafe.SizeOf<TVertex>());
+            SetupFields(vertexArrayName);
+
+            uint indexBufferName = default;
+            if (indices is not null)
+            {
+                GL.CreateBuffers(1, out indexBufferName);
+                GL.NamedBufferStorage(indexBufferName, Unsafe.SizeOf<TIndex>() * indexCount, ref indices[0], BufferStorageFlags.None);
+            }
+
+            return new()
+            {
+                HasIndexBuffer = indices is not null,
+                VertexBufferName = vertexBufferName,
+                IndexBufferName = indexBufferName,
+                Vertices = new(vertexCount),
+                Indices = new(indexCount),
+                DrawElementsType = indices is null ? default : drawElementsType[typeof(TIndex)],
+                VertexArrayName = vertexArrayName,
+            };
+        }
+
+        private static unsafe void SetupFields(uint vertexArrayName)
+        {
+            uint idx = 0, offset = 0;
             foreach (var fi in typeof(TVertex).GetFields())
             {
                 GL.EnableVertexArrayAttrib(vertexArrayName, idx);
@@ -58,6 +91,16 @@ namespace dclmgd.Renderer
                 ++idx;
             }
         }
+
+        static readonly Dictionary<Type, DrawElementsType> drawElementsType = new()
+        {
+            [typeof(byte)] = DrawElementsType.UnsignedByte,
+            [typeof(uint)] = DrawElementsType.UnsignedInt,
+            [typeof(ushort)] = DrawElementsType.UnsignedShort,
+            [typeof(sbyte)] = DrawElementsType.UnsignedByte,
+            [typeof(int)] = DrawElementsType.UnsignedInt,
+            [typeof(short)] = DrawElementsType.UnsignedShort,
+        };
 
         static readonly Dictionary<Type, int> fieldCounts = new()
         {
@@ -75,28 +118,30 @@ namespace dclmgd.Renderer
             [typeof(Vector4)] = VertexAttribType.Float,
         };
 
-        static readonly Dictionary<Type, int> fieldSizes = new()
+        static readonly Dictionary<Type, uint> fieldSizes = new()
         {
-            [typeof(float)] = Unsafe.SizeOf<float>(),
-            [typeof(Vector2)] = Unsafe.SizeOf<Vector2>(),
-            [typeof(Vector3)] = Unsafe.SizeOf<Vector3>(),
-            [typeof(Vector4)] = Unsafe.SizeOf<Vector4>(),
+            [typeof(float)] = (uint)Unsafe.SizeOf<float>(),
+            [typeof(Vector2)] = (uint)Unsafe.SizeOf<Vector2>(),
+            [typeof(Vector3)] = (uint)Unsafe.SizeOf<Vector3>(),
+            [typeof(Vector4)] = (uint)Unsafe.SizeOf<Vector4>(),
         };
 
         internal void Draw(PrimitiveType primitiveType)
         {
-            GL.BindVertexArray(vertexArrayName);
+            GL.BindVertexArray(VertexArrayName);
             if (HasIndexBuffer)
             {
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBufferName);
-                GL.DrawElements(primitiveType, Indices.Length, drawElementsType, 0);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, IndexBufferName);
+                GL.DrawElements(primitiveType, Indices.Length, DrawElementsType, 0);
             }
             else
                 GL.DrawArrays(primitiveType, 0, Vertices.Length);
         }
 
-        readonly int vertexBufferName, indexBufferName, vertexArrayName;
-        readonly DrawElementsType drawElementsType;
+        uint VertexBufferName { get; init; }
+        uint IndexBufferName { get; init; }
+        uint VertexArrayName { get; init; }
+        DrawElementsType DrawElementsType { get; init; }
 
         RefArray<TVertex> vertices;
         public ref RefArray<TVertex> Vertices => ref vertices;
@@ -104,7 +149,7 @@ namespace dclmgd.Renderer
         RefArray<TIndex> indices;
         public ref RefArray<TIndex> Indices => ref indices;
 
-        public bool HasIndexBuffer { get; }
+        public bool HasIndexBuffer { get; init; }
         public int VertexCapacity { get; private set; }
         public int IndexCapacity { get; private set; }
     }

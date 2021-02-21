@@ -1,6 +1,6 @@
 ﻿#version 460 core
 
-uniform mat4 world;
+layout(location = 0) uniform mat4 world;
 
 layout(std140) uniform matrices
 {

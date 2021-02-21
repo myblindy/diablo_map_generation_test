@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -45,7 +46,7 @@ namespace dclmgd.Renderer
         }
         UniformBufferObject<MatricesUbo> matricesUbo;
 
-        MeshModel meshModel;
+        MeshModel heroMeshModel, wallsMeshModel;
 
         protected override void OnLoad()
         {
@@ -65,14 +66,42 @@ namespace dclmgd.Renderer
             }, IntPtr.Zero);
 
             // load the model
-            meshModel = new MeshModel("Data/Models/Actors/Hero/model.dae");
+            heroMeshModel = new("Data/Models/Actors/Hero");
+            wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
             // load the shader
             matricesUbo = new();
-            matricesUbo.Data.view = Matrix4x4.CreateLookAt(new(-4, -4, 8), new(0, 0, 4), new(0, 0, 1));
-            matricesUbo.Update();
+            LoadCameraViewMatrix();
 
             GL.Enable(EnableCap.DepthTest);
+        }
+
+        private void LoadCameraViewMatrix()
+        {
+            matricesUbo.Data.view = Matrix4x4.CreateLookAt(new(4, height, 4), new(0, 4, 0), new(0, 1, 0));
+            matricesUbo.Update();
+        }
+
+        bool up, down;
+        protected override void OnKeyDown(KeyboardKeyEventArgs e)
+        {
+            if (e.Key == Keys.Up) up = true;
+            if (e.Key == Keys.Down) down = true;
+        }
+
+        protected override void OnKeyUp(KeyboardKeyEventArgs e)
+        {
+            if (e.Key == Keys.Up) up = false;
+            if (e.Key == Keys.Down) down = false;
+        }
+
+        float height = 8;
+        protected override void OnUpdateFrame(FrameEventArgs args)
+        {
+            const float delta = 0.1f;
+            if (up) height += delta;
+            if (down) height -= delta;
+            if (up || down) LoadCameraViewMatrix();
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
@@ -80,7 +109,8 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-            meshModel.Draw();
+            heroMeshModel.Draw();
+            wallsMeshModel.Draw();
 
             SwapBuffers();
         }

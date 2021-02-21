@@ -18,6 +18,12 @@ namespace dclmgd.Renderer
             Length = 0;
         }
 
+        public RefArray(int length)
+        {
+            memory = null;
+            (elementCapacity, Length) = (length, length);
+        }
+
         public ref T this[int idx] => ref memory[idx];
 
         public void Clear() => Length = 0;
