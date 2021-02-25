@@ -47,6 +47,8 @@ namespace dclmgd.Renderer
         }
         UniformBufferObject<MatricesUbo> matricesUbo;
 
+        Camera camera;
+
         MeshModel heroMeshModel, wallsMeshModel;
 
         protected override void OnLoad()
@@ -72,7 +74,7 @@ namespace dclmgd.Renderer
 
             // load the shader ubo
             matricesUbo = new();
-            LoadCameraViewMatrix();
+            camera = new(new(4, 8, 4), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
             var objectShader = ShaderProgramCache.Get("object");
@@ -84,12 +86,6 @@ namespace dclmgd.Renderer
             objectShader.Set("light.quadratic", 0.0075f);
 
             GL.Enable(EnableCap.DepthTest);
-        }
-
-        private void LoadCameraViewMatrix()
-        {
-            matricesUbo.Data.view = Matrix4x4.CreateLookAt(cameraPosition, new(0, 4, 0), new(0, 1, 0));
-            matricesUbo.Update();
         }
 
         bool up, down;
@@ -105,13 +101,12 @@ namespace dclmgd.Renderer
             if (e.Key == Keys.Down) down = false;
         }
 
-        Vector3 cameraPosition = new(4, 8, 4);
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             const float delta = 0.1f;
-            if (up) cameraPosition.Y += delta;
-            if (down) cameraPosition.Y -= delta;
-            if (up || down) LoadCameraViewMatrix();
+            if (up) camera.Position.Y += delta;
+            if (down) camera.Position.Y -= delta;
+            if (up || down) camera.Update();
         }
 
         double time;
@@ -125,7 +120,7 @@ namespace dclmgd.Renderer
             matricesUbo.Bind(0);
 
             var objectShader = ShaderProgramCache.Get("object");
-            objectShader.Set("view_position", cameraPosition);
+            objectShader.Set("view_position", ref camera.Position);
             objectShader.Set("light.position",
                 new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 4f, 8f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 4f));
 
