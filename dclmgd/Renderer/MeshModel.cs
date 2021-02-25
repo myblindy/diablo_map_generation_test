@@ -8,6 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 using Matrix4x4 = System.Numerics.Matrix4x4;
@@ -35,9 +36,10 @@ namespace dclmgd.Renderer
             public readonly VertexArrayObject<Vertex, ushort> vao;
             public readonly Texture diffuseTexture, normalTexture;
             public readonly ShaderProgram program;
+            public readonly Matrix4x4 model;
 
-            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture diffuseTexture, Texture normalTexture, ShaderProgram program) =>
-                (this.vao, this.diffuseTexture, this.normalTexture, this.program) = (vao, diffuseTexture, normalTexture, program);
+            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture diffuseTexture, Texture normalTexture, ShaderProgram program, Matrix4x4 model) =>
+                (this.vao, this.diffuseTexture, this.normalTexture, this.program, this.model) = (vao, diffuseTexture, normalTexture, program, model);
         }
         readonly PerMeshData[] perMeshData;
 
@@ -54,6 +56,12 @@ namespace dclmgd.Renderer
                 return File.Exists(texturePath) ? new(texturePath) : null;
             }
         }
+
+        class MaterialType
+        {
+            public float Shininess { get; set; } = 1;
+        }
+        readonly MaterialType material;
 
         public MeshModel(string path)
         {
@@ -81,6 +89,11 @@ namespace dclmgd.Renderer
                 var mesh = scene.Meshes[meshIdx];
                 ref PerMeshData perMeshDataSlot = ref perMeshData[meshIdx];
 
+                // load the material json file, if any
+                var materialPath = Path.Combine(path, mesh.Name, "material.json");
+                if (File.Exists(materialPath))
+                    material = JsonSerializer.Deserialize<MaterialType>(File.ReadAllText(materialPath));
+
                 var indices = mesh.GetShortIndices();
                 perMeshDataSlot = new(
                     vao: VertexArrayObject<Vertex, ushort>.CreateStatic(
@@ -92,12 +105,12 @@ namespace dclmgd.Renderer
                         indices.Cast<ushort>().ToArray(indices.Length)),
                     TryLoadTexture(path, mesh, TextureType.Diffuse),
                     TryLoadTexture(path, mesh, TextureType.Normal),
-                    program: new("object"));
-
-                perMeshDataSlot.program.UniformBlockBind("matrices", 0);
-                perMeshDataSlot.program.Set("world", transformsDictionary[mesh]);
-                if (perMeshDataSlot.diffuseTexture is not null)
-                    perMeshDataSlot.program.Set("diffuseTexture", 0);
+                    program: ShaderProgramCache.Get("object", shader =>
+                    {
+                        shader.UniformBlockBind("matrices", 0);
+                        shader.Set("material.diffuse", 0);
+                    }),
+                    model: transformsDictionary[mesh]);
             }
         }
 
@@ -107,6 +120,9 @@ namespace dclmgd.Renderer
             {
                 perMeshDataItem.diffuseTexture?.Bind();
                 perMeshDataItem.program.Use();
+                perMeshDataItem.program.Set("model", perMeshDataItem.model);
+                perMeshDataItem.program.Set("material.shininess", material.Shininess);
+
                 perMeshDataItem.vao.Draw(PrimitiveType.Triangles);
             }
         }

@@ -74,9 +74,28 @@ namespace dclmgd.Renderer
         public void Set(string name, Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, true, ref mat.M11);
         public void Set(string name, ref Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, false, ref mat.M11);
 
+        public void Set(string name, Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);
+        public void Set(string name, ref Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);
+
         public void Set(string name, int val) => GL.ProgramUniform1(programName, attributeLocations[name], val);
+        public void Set(string name, float val) => GL.ProgramUniform1(programName, attributeLocations[name], val);
 
         public void UniformBlockBind(string uniformVariableName, int bindingPoint) =>
             GL.UniformBlockBinding(programName, attributeLocations[uniformVariableName], bindingPoint);
+    }
+
+    static class ShaderProgramCache
+    {
+        static readonly Dictionary<string, ShaderProgram> cache = new();
+
+        public static ShaderProgram Get(string name, Action<ShaderProgram> init = null)
+        {
+            if (!cache.TryGetValue(name, out var program))
+            {
+                cache[name] = program = new(name);
+                if (init is not null) init(program);
+            }
+            return program;
+        }
     }
 }

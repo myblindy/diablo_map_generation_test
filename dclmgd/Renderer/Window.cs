@@ -3,6 +3,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -20,7 +21,7 @@ namespace dclmgd.Renderer
                 IsMultiThreaded = false,
             }, new()
             {
-                Profile = ContextProfile.Any,
+                Profile = ContextProfile.Core,
                 API = ContextAPI.OpenGL,
                 APIVersion = new Version(4, 6),
                 StartFocused = true,
@@ -69,16 +70,25 @@ namespace dclmgd.Renderer
             heroMeshModel = new("Data/Models/Actors/Hero");
             wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
-            // load the shader
+            // load the shader ubo
             matricesUbo = new();
             LoadCameraViewMatrix();
+
+            // set the object shader light properties
+            var objectShader = ShaderProgramCache.Get("object");
+            objectShader.Set("light.ambient", new Vector3(.2f, .2f, .2f));
+            objectShader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
+            objectShader.Set("light.specular", new Vector3(1f, 1f, 1f));
+            objectShader.Set("light.constant", 1.0f);
+            objectShader.Set("light.linear", 0.045f);
+            objectShader.Set("light.quadratic", 0.0075f);
 
             GL.Enable(EnableCap.DepthTest);
         }
 
         private void LoadCameraViewMatrix()
         {
-            matricesUbo.Data.view = Matrix4x4.CreateLookAt(new(4, height, 4), new(0, 4, 0), new(0, 1, 0));
+            matricesUbo.Data.view = Matrix4x4.CreateLookAt(cameraPosition, new(0, 4, 0), new(0, 1, 0));
             matricesUbo.Update();
         }
 
@@ -95,20 +105,30 @@ namespace dclmgd.Renderer
             if (e.Key == Keys.Down) down = false;
         }
 
-        float height = 8;
+        Vector3 cameraPosition = new(4, 8, 4);
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             const float delta = 0.1f;
-            if (up) height += delta;
-            if (down) height -= delta;
+            if (up) cameraPosition.Y += delta;
+            if (down) cameraPosition.Y -= delta;
             if (up || down) LoadCameraViewMatrix();
         }
 
+        double time;
         protected override void OnRenderFrame(FrameEventArgs args)
         {
+            time += args.Time;
+            float lightSpeedMultiplier = 1f;
+
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
+
+            var objectShader = ShaderProgramCache.Get("object");
+            objectShader.Set("view_position", cameraPosition);
+            objectShader.Set("light.position",
+                new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 4f, 8f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 4f));
+
             heroMeshModel.Draw();
             wallsMeshModel.Draw();
 
