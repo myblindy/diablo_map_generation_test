@@ -35,9 +35,9 @@ namespace dclmgd.Renderer
 
         protected override void OnResize(ResizeEventArgs e)
         {
-            GL.Viewport(0, 0, e.Width, e.Height);
             matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(103f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
             matricesUbo.Update();
+            base.OnResize(e);
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -48,8 +48,12 @@ namespace dclmgd.Renderer
         UniformBufferObject<MatricesUbo> matricesUbo;
 
         Camera camera;
-
         MeshModel heroMeshModel, wallsMeshModel;
+
+        const int shadowMapResolution = 1024;
+        TextureCubeMap shadowMap;
+        FrameBuffer shadowFrameBuffer;
+        Matrix4x4 shadowProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2f, 1f, 1f, 25f);
 
         protected override void OnLoad()
         {
@@ -72,7 +76,7 @@ namespace dclmgd.Renderer
             heroMeshModel = new("Data/Models/Actors/Hero");
             wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
-            // load the shader ubo
+            // load the camera ubo
             matricesUbo = new();
             camera = new(new(4, 8, 4), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
@@ -84,6 +88,10 @@ namespace dclmgd.Renderer
             objectShader.Set("light.constant", 1.0f);
             objectShader.Set("light.linear", 0.045f);
             objectShader.Set("light.quadratic", 0.0075f);
+
+            // shadow map
+            shadowMap = new(shadowMapResolution, shadowMapResolution, TextureStorageType.DepthOnly, TextureFilteringType.NearestMinNearestMag, TextureClampingType.ClampToEdge);
+            shadowFrameBuffer = new(null, shadowMap);
 
             GL.Enable(EnableCap.DepthTest);
         }
@@ -113,19 +121,46 @@ namespace dclmgd.Renderer
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             time += args.Time;
-            float lightSpeedMultiplier = 1f;
 
+            const float lightSpeedMultiplier = 1f;
+            var lightPosition = new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 4f, 8f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 4f);
+
+            void RenderScene(bool shadowPass)
+            {
+                heroMeshModel.Draw(shadowPass);
+                wallsMeshModel.Draw(shadowPass);
+            }
+
+            // first pass: shadows
+            GL.Viewport(0, 0, shadowMapResolution, shadowMapResolution);
+            shadowFrameBuffer.Bind();
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+
+            var shadowTransforms = new[]
+            {
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(1, 0, 0), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(-1, 0, 0), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 1, 0), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, -1, 0), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, -1), new(0, -1, 0)),
+            };
+
+            RenderScene(true);
+            shadowFrameBuffer.Unbind();
+
+            // second pass: the actual scene
+            GL.Viewport(0, 0, Size.X, Size.Y);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
 
             var objectShader = ShaderProgramCache.Get("object");
             objectShader.Set("view_position", ref camera.Position);
-            objectShader.Set("light.position",
-                new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 4f, 8f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 4f));
+            objectShader.Set("light.position", ref lightPosition);
 
-            heroMeshModel.Draw();
-            wallsMeshModel.Draw();
+            shadowMap.Bind(0);
+            RenderScene(false);
 
             SwapBuffers();
         }

@@ -14,7 +14,7 @@ namespace dclmgd.Renderer
         readonly int programName;
         readonly Dictionary<string, int> attributeLocations = new();
 
-        public ShaderProgram(string vsPath, string fsPath)
+        public ShaderProgram(string vsPath, string fsPath, string geomPath = null)
         {
             static int CompileShader(ShaderType type, string path)
             {
@@ -31,18 +31,28 @@ namespace dclmgd.Renderer
 
             var vsName = CompileShader(ShaderType.VertexShader, Path.Combine("Data", "Shaders", vsPath));
             var fsName = CompileShader(ShaderType.FragmentShader, Path.Combine("Data", "Shaders", fsPath));
+            string fullGeomPath = geomPath is null ? null : Path.Combine("Data", "Shaders", geomPath);
+            var geomName = fullGeomPath is not null && File.Exists(fullGeomPath) ? CompileShader(ShaderType.GeometryShader, fullGeomPath) : 0;
 
             programName = GL.CreateProgram();
             GL.AttachShader(programName, vsName);
             GL.AttachShader(programName, fsName);
+            if (geomName != 0) GL.AttachShader(programName, geomName);
             GL.LinkProgram(programName);
 
             GL.GetProgram(programName, GetProgramParameterName.LinkStatus, out var status);
             if (status == 0)
-                throw new InvalidOperationException($"Linking errors for '{vsPath}' and '{fsPath}':\n\n{GL.GetProgramInfoLog(programName)}");
+                throw new InvalidOperationException($"Linking errors for '{vsPath}', '{fsPath}' and '{geomPath}':\n\n{GL.GetProgramInfoLog(programName)}");
 
+            GL.DetachShader(programName, vsName);
             GL.DeleteShader(vsName);
+            GL.DetachShader(programName, fsName);
             GL.DeleteShader(fsName);
+            if(geomName!=0)
+            {
+                GL.DetachShader(programName, geomName);
+                GL.DeleteShader(geomName);
+            }
 
             GL.GetProgram(programName, GetProgramParameterName.ActiveUniformMaxLength, out var activeUniformMaxLength);
             GL.GetProgram(programName, GetProgramParameterName.ActiveUniforms, out var uniformCount);
@@ -67,7 +77,7 @@ namespace dclmgd.Renderer
             }
         }
 
-        public ShaderProgram(string path) : this(path + ".vert", path + ".frag") { }
+        public ShaderProgram(string path) : this(path + ".vert", path + ".frag", path + ".geom") { }
 
         public void Use() => GL.UseProgram(programName);
 

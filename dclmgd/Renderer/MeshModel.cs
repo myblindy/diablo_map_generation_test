@@ -34,26 +34,27 @@ namespace dclmgd.Renderer
         struct PerMeshData
         {
             public readonly VertexArrayObject<Vertex, ushort> vao;
-            public readonly Texture diffuseTexture, normalTexture;
-            public readonly ShaderProgram program;
+            public readonly Texture2D diffuseTexture, normalTexture;
+            public readonly ShaderProgram lightProgram, shadowProgram;
             public readonly Matrix4x4 model;
 
-            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture diffuseTexture, Texture normalTexture, ShaderProgram program, Matrix4x4 model) =>
-                (this.vao, this.diffuseTexture, this.normalTexture, this.program, this.model) = (vao, diffuseTexture, normalTexture, program, model);
+            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture, ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 model) =>
+                (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.model) =
+                    (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, model);
         }
         readonly PerMeshData[] perMeshData;
 
         static readonly AssimpContext assimpContext = new();
 
-        static Texture TryLoadTexture(string meshPath, Mesh mesh, TextureType textureType)
+        static Texture2D TryLoadTexture(string meshPath, Mesh mesh, TextureType textureType)
         {
             var texturesPath = Path.Combine(meshPath, mesh.Name);
             return tryLoad("png") ?? tryLoad("jpg");
 
-            Texture tryLoad(string ext)
+            Texture2D tryLoad(string ext)
             {
                 var texturePath = Path.Combine(texturesPath, $"{textureType}.{ext}");
-                return File.Exists(texturePath) ? new(texturePath) : null;
+                return File.Exists(texturePath) ? new(texturePath, TextureStorageType.Rgbx, TextureFilteringType.LinearMinLinearMag, TextureClampingType.ClampToEdge) : null;
             }
         }
 
@@ -105,23 +106,34 @@ namespace dclmgd.Renderer
                         indices.Cast<ushort>().ToArray(indices.Length)),
                     TryLoadTexture(path, mesh, TextureType.Diffuse),
                     TryLoadTexture(path, mesh, TextureType.Normal),
-                    program: ShaderProgramCache.Get("object", shader =>
+                    lightProgram: ShaderProgramCache.Get("object", shader =>
                     {
                         shader.UniformBlockBind("matrices", 0);
-                        shader.Set("material.diffuse", 0);
+                        shader.Set("material.diffuse", 1);
+                    }),
+                    shadowProgram: ShaderProgramCache.Get("object-shadow", shader =>
+                    {
+
                     }),
                     model: transformsDictionary[mesh]);
             }
         }
 
-        public void Draw()
+        public void Draw(bool shadowPass)
         {
             foreach (var perMeshDataItem in perMeshData)
             {
-                perMeshDataItem.diffuseTexture?.Bind();
-                perMeshDataItem.program.Use();
-                perMeshDataItem.program.Set("model", perMeshDataItem.model);
-                perMeshDataItem.program.Set("material.shininess", material.Shininess);
+                if (shadowPass)
+                {
+
+                }
+                else
+                {
+                    perMeshDataItem.diffuseTexture?.Bind(1);
+                    perMeshDataItem.lightProgram.Use();
+                    perMeshDataItem.lightProgram.Set("model", perMeshDataItem.model);
+                    perMeshDataItem.lightProgram.Set("material.shininess", material.Shininess);
+                }
 
                 perMeshDataItem.vao.Draw(PrimitiveType.Triangles);
             }
