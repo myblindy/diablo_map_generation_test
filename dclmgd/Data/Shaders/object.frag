@@ -10,6 +10,9 @@ struct Light
 {
     vec3 position;
 
+    samplerCube depthMap;
+    float farPlane;
+
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -28,6 +31,21 @@ uniform Material material;
 uniform Light light;
 
 out vec4 color;
+
+// shadow bias to fix shadow acne
+#define SHADOW_BIAS 0.05
+
+float ShadowCalculation(vec3 fragPos)
+{
+    vec3 fragToLight = fragPos - light.position;
+    float closestDepth = texture(light.depthMap, fragToLight).r;
+    closestDepth *= light.farPlane;
+    float currentDepth = length(fragToLight);
+
+    return currentDepth - SHADOW_BIAS > closestDepth ? 1.0 : 0.0;
+    //return closestDepth / light.farPlane; 
+}
+
 
 void main()
 {
@@ -52,5 +70,9 @@ void main()
     float distance = length(light.position - fs_position);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
-    color = vec4((ambient + diffuse + specular) * attenuation, 1.0);
+    // shadow
+    float shadow = ShadowCalculation(fs_position);
+
+    color = /*vec4(shadow, shadow, shadow, 1.0) + 0.00001 * */ 
+        vec4((ambient + (1.0 - shadow) * (diffuse + specular)) * attenuation, 1.0);
 }

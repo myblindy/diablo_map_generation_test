@@ -18,7 +18,7 @@ out vec2 fs_uv;
 void main()
 {
     fs_position = vec3(model * vec4(position, 1.0));
-    fs_normal = mat3(transpose(inverse(model))) * normal;
+    fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 
     gl_Position = projection * view * vec4(fs_position, 1.0);

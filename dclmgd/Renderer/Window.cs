@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using MoreLinq;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -35,7 +36,7 @@ namespace dclmgd.Renderer
 
         protected override void OnResize(ResizeEventArgs e)
         {
-            matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(103f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
+            matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(70f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
             matricesUbo.Update();
             base.OnResize(e);
         }
@@ -53,7 +54,8 @@ namespace dclmgd.Renderer
         const int shadowMapResolution = 1024;
         TextureCubeMap shadowMap;
         FrameBuffer shadowFrameBuffer;
-        Matrix4x4 shadowProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2f, 1f, 1f, 25f);
+        const float shadowFarPlane = 25f;
+        readonly static Matrix4x4 shadowProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2f, 1f, 1f, shadowFarPlane);
 
         protected override void OnLoad()
         {
@@ -78,16 +80,22 @@ namespace dclmgd.Renderer
 
             // load the camera ubo
             matricesUbo = new();
-            camera = new(new(4, 8, 4), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
+            camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
             var objectShader = ShaderProgramCache.Get("object");
+            objectShader.Set("light.farPlane", shadowFarPlane);
+            objectShader.Set("light.depthMap", 0);
             objectShader.Set("light.ambient", new Vector3(.2f, .2f, .2f));
             objectShader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
             objectShader.Set("light.specular", new Vector3(1f, 1f, 1f));
             objectShader.Set("light.constant", 1.0f);
             objectShader.Set("light.linear", 0.045f);
             objectShader.Set("light.quadratic", 0.0075f);
+
+            // set the object shader shadow properties
+            objectShader = ShaderProgramCache.Get("object-shadow");
+            objectShader.Set("farPlane", shadowFarPlane);
 
             // shadow map
             shadowMap = new(shadowMapResolution, shadowMapResolution, TextureStorageType.DepthOnly, TextureFilteringType.NearestMinNearestMag, TextureClampingType.ClampToEdge);
@@ -123,7 +131,7 @@ namespace dclmgd.Renderer
             time += args.Time;
 
             const float lightSpeedMultiplier = 1f;
-            var lightPosition = new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 4f, 8f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 4f);
+            var lightPosition = new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 5f, 4f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 5f);
 
             void RenderScene(bool shadowPass)
             {
@@ -134,17 +142,22 @@ namespace dclmgd.Renderer
             // first pass: shadows
             GL.Viewport(0, 0, shadowMapResolution, shadowMapResolution);
             shadowFrameBuffer.Bind();
+            GL.ReadBuffer(ReadBufferMode.None);
+            GL.DrawBuffer(DrawBufferMode.None);
             GL.Clear(ClearBufferMask.DepthBufferBit);
 
             var shadowTransforms = new[]
             {
                 shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(1, 0, 0), new(0, -1, 0)),
                 shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(-1, 0, 0), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 1, 0), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, -1, 0), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 1, 0), new(0, 0, 1)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, -1, 0), new(0, 0, -1)),
                 shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, -1), new(0, -1, 0)),
+                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)),
             };
+            var objectShadowShader = ShaderProgramCache.Get("object-shadow");
+            shadowTransforms.ForEach((t, idx) => objectShadowShader.Set($"shadowMatrices[{idx}]", ref t));
+            objectShadowShader.Set("lightPos", ref lightPosition);
 
             RenderScene(true);
             shadowFrameBuffer.Unbind();
@@ -154,7 +167,6 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-
             var objectShader = ShaderProgramCache.Get("object");
             objectShader.Set("view_position", ref camera.Position);
             objectShader.Set("light.position", ref lightPosition);

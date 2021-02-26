@@ -48,7 +48,7 @@ namespace dclmgd.Renderer
             GL.DeleteShader(vsName);
             GL.DetachShader(programName, fsName);
             GL.DeleteShader(fsName);
-            if(geomName!=0)
+            if (geomName != 0)
             {
                 GL.DetachShader(programName, geomName);
                 GL.DeleteShader(geomName);
@@ -59,10 +59,25 @@ namespace dclmgd.Renderer
             for (int i = 0; i < uniformCount; ++i)
             {
                 GL.GetActiveUniformName(programName, i, Math.Max(1, activeUniformMaxLength), out _, out var name);
-                int location = GL.GetUniformLocation(programName, name);
 
-                if (location >= 0)
-                    attributeLocations[name] = location;
+                if (name.EndsWith("[0]"))
+                    for (int idx = 0; ; ++idx)
+                    {
+                        string arrayName = name[..^3] + $"[{idx}]";
+                        int location = GL.GetUniformLocation(programName, arrayName);
+
+                        if (location >= 0)
+                            attributeLocations[arrayName] = location;
+                        else
+                            break;
+                    }
+                else
+                {
+                    int location = GL.GetUniformLocation(programName, name);
+
+                    if (location >= 0)
+                        attributeLocations[name] = location;
+                }
             }
 
             GL.GetProgram(programName, GetProgramParameterName.ActiveUniformBlockMaxNameLength, out var xctiveUniformBlockMaxNameLength);
@@ -82,7 +97,7 @@ namespace dclmgd.Renderer
         public void Use() => GL.UseProgram(programName);
 
         public void Set(string name, Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, true, ref mat.M11);
-        public void Set(string name, ref Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, false, ref mat.M11);
+        public void Set(string name, ref Matrix4x4 mat) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, true, ref mat.M11);
 
         public void Set(string name, Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);
         public void Set(string name, ref Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);

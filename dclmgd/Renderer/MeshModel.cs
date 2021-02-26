@@ -36,10 +36,10 @@ namespace dclmgd.Renderer
             public readonly VertexArrayObject<Vertex, ushort> vao;
             public readonly Texture2D diffuseTexture, normalTexture;
             public readonly ShaderProgram lightProgram, shadowProgram;
-            public readonly Matrix4x4 model;
+            public readonly Matrix4x4 modelTransform;
 
             public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture, ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 model) =>
-                (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.model) =
+                (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform) =
                     (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, model);
         }
         readonly PerMeshData[] perMeshData;
@@ -125,13 +125,14 @@ namespace dclmgd.Renderer
             {
                 if (shadowPass)
                 {
-
+                    perMeshDataItem.shadowProgram.Use();
+                    perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform);
                 }
                 else
                 {
                     perMeshDataItem.diffuseTexture?.Bind(1);
                     perMeshDataItem.lightProgram.Use();
-                    perMeshDataItem.lightProgram.Set("model", perMeshDataItem.model);
+                    perMeshDataItem.lightProgram.Set("model", perMeshDataItem.modelTransform);
                     perMeshDataItem.lightProgram.Set("material.shininess", material.Shininess);
                 }
 
