@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for my Material JSON file format",
+
+  "type": "object",
+
+  "properties": {
+    "shininess": {
+      "type": "number",
+      "minimum": 1
+    }
+  }
+}
