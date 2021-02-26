@@ -28,6 +28,6 @@ namespace dclmgd.Renderer
 
         public void Bind() => GL.BindFramebuffer(FramebufferTarget.Framebuffer, name);
 
-        public void Unbind() => GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        public static void Unbind() => GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
     }
 }

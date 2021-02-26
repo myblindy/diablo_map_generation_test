@@ -47,7 +47,7 @@ namespace dclmgd.Renderer
             GL.TextureParameterI(Name, TextureParameterName.TextureWrapR, ref wrap);
         }
 
-        public abstract void Bind(int unit);
+        public abstract void Bind(int unit = 0);
     }
 
     class Texture2D : Texture
@@ -76,7 +76,7 @@ namespace dclmgd.Renderer
             SetupClamping(clamping);
         }
 
-        public override void Bind(int unit)
+        public override void Bind(int unit = 0)
         {
             GL.ActiveTexture(TextureUnit.Texture0 + unit);
             GL.BindTexture(TextureTarget.Texture2D, Name);
@@ -95,8 +95,6 @@ namespace dclmgd.Renderer
                 case TextureStorageType.DepthOnly:
                     {
                         GL.TextureStorage2D(Name, 1, (SizedInternalFormat)OpenTK.Graphics.ES30.SizedDepthStencilFormat.DepthComponent32f, width, height);
-                        //for (int face = 0; face < 6; ++face)
-                        //    GL.TextureSubImage3D(name, 0, 0, 0, face, width, height, 1, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
                         break;
                     }
 
@@ -108,7 +106,7 @@ namespace dclmgd.Renderer
             SetupClamping(clamping);
         }
 
-        public override void Bind(int unit)
+        public override void Bind(int unit = 0)
         {
             GL.ActiveTexture(TextureUnit.Texture0 + unit);
             GL.BindTexture(TextureTarget.TextureCubeMap, Name);

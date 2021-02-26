@@ -46,7 +46,6 @@ float ShadowCalculation(vec3 fragPos)
     //return closestDepth / light.farPlane; 
 }
 
-
 void main()
 {
     vec3 diffuseTexel = texture(material.diffuse, fs_uv).rgb;
@@ -73,6 +72,5 @@ void main()
     // shadow
     float shadow = ShadowCalculation(fs_position);
 
-    color = /*vec4(shadow, shadow, shadow, 1.0) + 0.00001 * */ 
-        vec4((ambient + (1.0 - shadow) * (diffuse + specular)) * attenuation, 1.0);
+    color = vec4((ambient + (1.0 - shadow) * (diffuse + specular)) * attenuation, 1.0);
 }

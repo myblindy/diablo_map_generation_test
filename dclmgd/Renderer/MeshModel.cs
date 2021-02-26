@@ -126,13 +126,13 @@ namespace dclmgd.Renderer
                 if (shadowPass)
                 {
                     perMeshDataItem.shadowProgram.Use();
-                    perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform);
+                    perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform, true);
                 }
                 else
                 {
                     perMeshDataItem.diffuseTexture?.Bind(1);
                     perMeshDataItem.lightProgram.Use();
-                    perMeshDataItem.lightProgram.Set("model", perMeshDataItem.modelTransform);
+                    perMeshDataItem.lightProgram.Set("model", perMeshDataItem.modelTransform, true);
                     perMeshDataItem.lightProgram.Set("material.shininess", material.Shininess);
                 }
 

@@ -148,19 +148,19 @@ namespace dclmgd.Renderer
 
             var shadowTransforms = new[]
             {
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(1, 0, 0), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(-1, 0, 0), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 1, 0), new(0, 0, 1)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, -1, 0), new(0, 0, -1)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, -1), new(0, -1, 0)),
-                shadowProjection * Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)),
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(1, 0, 0), new(0, -1, 0)) * shadowProjection,
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(-1, 0, 0), new(0, -1, 0)) * shadowProjection,
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 1, 0), new(0, 0, 1)) * shadowProjection,
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, -1, 0), new(0, 0, -1)) * shadowProjection,
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)) * shadowProjection,
+                Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, -1), new(0, -1, 0)) * shadowProjection,
             };
             var objectShadowShader = ShaderProgramCache.Get("object-shadow");
-            shadowTransforms.ForEach((t, idx) => objectShadowShader.Set($"shadowMatrices[{idx}]", ref t));
+            shadowTransforms.ForEach((t, idx) => objectShadowShader.Set($"shadowMatrices[{idx}]", ref t, false));
             objectShadowShader.Set("lightPos", ref lightPosition);
 
             RenderScene(true);
-            shadowFrameBuffer.Unbind();
+            FrameBuffer.Unbind();
 
             // second pass: the actual scene
             GL.Viewport(0, 0, Size.X, Size.Y);
