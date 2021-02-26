@@ -22,10 +22,10 @@ namespace dclmgd.Renderer
             {
                 Profile = ContextProfile.Any,
                 API = ContextAPI.OpenGL,
-                APIVersion = new Version(4, 6),
+                APIVersion = new(4, 6),
                 StartFocused = true,
                 StartVisible = true,
-                Size = new OpenTK.Mathematics.Vector2i(800, 600),
+                Size = new(800, 600),
                 Title = "dclmgd",
                 Flags = ContextFlags.ForwardCompatible,
             })
