@@ -1,0 +1,8 @@
+{
+  "defines": [
+    {
+      "name": "NORMAL_MAP",
+      "fileNamePart": "normal"
+    }
+  ]
+}

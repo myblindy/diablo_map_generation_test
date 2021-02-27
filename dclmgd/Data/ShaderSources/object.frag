@@ -22,6 +22,9 @@ struct Light
     float quadratic;
 };
 
+#ifdef NORMAL_MAP 
+#endif
+
 in vec3 fs_position;
 in vec3 fs_normal;
 in vec2 fs_uv;

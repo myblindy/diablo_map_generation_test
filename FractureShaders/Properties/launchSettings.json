@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FractureShaders": {
+      "commandName": "Project",
+      "commandLineArgs": "\"F:\\gitrepos\\diablo_map_generation_test\\dclmgd\""
+    }
+  }
+}
