@@ -11,7 +11,7 @@ namespace dclmgd.Renderer
 {
     enum TextureStorageType { Rgbx, DepthOnly }
     enum TextureFilteringType { NearestMinNearestMag, LinearMinLinearMag }
-    enum TextureClampingType { ClampToEdge }
+    enum TextureClampingType { ClampToEdge, Repeat }
 
     abstract class Texture
     {
@@ -40,6 +40,7 @@ namespace dclmgd.Renderer
             var wrap = clamping switch
             {
                 TextureClampingType.ClampToEdge => (int)TextureWrapMode.ClampToEdge,
+                TextureClampingType.Repeat => (int)TextureWrapMode.Repeat,
                 _ => throw new NotImplementedException(),
             };
             GL.TextureParameterI(Name, TextureParameterName.TextureWrapS, ref wrap);

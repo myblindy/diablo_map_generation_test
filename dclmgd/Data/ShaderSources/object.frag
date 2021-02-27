@@ -3,6 +3,9 @@
 struct Material
 {
     sampler2D diffuse;
+#ifdef NORMAL_MAP
+    sampler2D normal;
+#endif
     float shininess;
 };
 
@@ -22,12 +25,13 @@ struct Light
     float quadratic;
 };
 
-#ifdef NORMAL_MAP 
-#endif
-
 in vec3 fs_position;
 in vec3 fs_normal;
 in vec2 fs_uv;
+
+#ifdef NORMAL_MAP
+in mat3 TBN;
+#endif
 
 uniform vec3 view_position;
 uniform Material material;
@@ -58,6 +62,11 @@ void main()
 
     // diffuse
     vec3 norm = normalize(fs_normal);
+#ifdef NORMAL_MAP
+    norm = texture(material.normal, fs_uv).rgb;
+    norm = norm * 2.0 - 1.0;   
+    norm = normalize(TBN * norm); 
+#endif
     vec3 lightDir = normalize(light.position - fs_position);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = light.diffuse * diff * diffuseTexel;

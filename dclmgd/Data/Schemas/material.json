@@ -7,7 +7,16 @@
   "properties": {
     "shininess": {
       "type": "number",
-      "minimum": 1
+      "minimum": 1,
+      "default": 1
+    },
+    "textureSMultiplier": {
+      "type": "number",
+      "default": 1
+    },
+    "textureTMultiplier": {
+      "type": "number",
+      "default": 1
     }
   }
 }

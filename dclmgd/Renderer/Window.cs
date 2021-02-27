@@ -83,19 +83,24 @@ namespace dclmgd.Renderer
             camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
-            var objectShader = ShaderProgramCache.Get("object");
-            objectShader.Set("light.farPlane", shadowFarPlane);
-            objectShader.Set("light.depthMap", 0);
-            objectShader.Set("light.ambient", new Vector3(.2f, .2f, .2f));
-            objectShader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
-            objectShader.Set("light.specular", new Vector3(1f, 1f, 1f));
-            objectShader.Set("light.constant", 1.0f);
-            objectShader.Set("light.linear", 0.045f);
-            objectShader.Set("light.quadratic", 0.0075f);
+            setShaderLight(ShaderProgramCache.Get("object"));
+            setShaderLight(ShaderProgramCache.Get("object-normal"));
+
+            static void setShaderLight(ShaderProgram shader)
+            {
+                shader.Set("light.farPlane", shadowFarPlane);
+                shader.Set("light.depthMap", 0);
+                shader.Set("light.ambient", new Vector3(.2f, .2f, .2f));
+                shader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
+                shader.Set("light.specular", new Vector3(1f, 1f, 1f));
+                shader.Set("light.constant", 1.0f);
+                shader.Set("light.linear", 0.045f);
+                shader.Set("light.quadratic", 0.0075f);
+            }
 
             // set the object shader shadow properties
-            objectShader = ShaderProgramCache.Get("object-shadow");
-            objectShader.Set("farPlane", shadowFarPlane);
+            var objectShadowShader = ShaderProgramCache.Get("object-shadow");
+            objectShadowShader.Set("farPlane", shadowFarPlane);
 
             // shadow map
             shadowMap = new(shadowMapResolution, shadowMapResolution, TextureStorageType.DepthOnly, TextureFilteringType.NearestMinNearestMag, TextureClampingType.ClampToEdge);
@@ -167,9 +172,14 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-            var objectShader = ShaderProgramCache.Get("object");
-            objectShader.Set("view_position", ref camera.Position);
-            objectShader.Set("light.position", ref lightPosition);
+            setShaderPositions(ShaderProgramCache.Get("object"));
+            setShaderPositions(ShaderProgramCache.Get("object-normal"));
+
+            void setShaderPositions(ShaderProgram shader)
+            {
+                shader.Set("view_position", ref camera.Position);
+                shader.Set("light.position", ref lightPosition);
+            }
 
             shadowMap.Bind(0);
             RenderScene(false);

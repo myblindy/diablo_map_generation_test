@@ -1,4 +1,6 @@
 {
   "$schema": "../../../../Schemas/material.json",
-  "shininess": 1
+  "shininess": 1,
+  "textureSMultiplier": 6,
+  "textureTMultiplier": 3
 }
