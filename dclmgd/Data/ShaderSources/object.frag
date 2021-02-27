@@ -36,7 +36,7 @@ uniform Light light;
 out vec4 color;
 
 // shadow bias to fix shadow acne
-#define SHADOW_BIAS 0.05
+#define SHADOW_BIAS 0.08
 
 float ShadowCalculation(vec3 fragPos)
 {
