@@ -28,6 +28,8 @@ namespace FractureShaders
             var reIfDef = new Regex(@"^\s*#ifdef\s+([\w-]+)\s*$");
             var reEndIf = new Regex(@"^\s*#endif\s*$");
 
+            Console.WriteLine($"Fracturing shaders starting in {args[0]}.");
+
             var startPath = Path.Combine(args[0], @"Data/ShaderSources");
             var extensions = new[] { ".frag", ".vert", ".geom" };
             var destinationPath = Path.Combine(args[0], @"Data/Shaders");

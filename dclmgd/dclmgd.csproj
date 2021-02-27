@@ -41,6 +41,19 @@
     <None Update="Data\**\*.dae">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Data\Shaders\**\*.frag">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\Shaders\**\*.vert">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\Shaders\**\*.geom">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
+
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+    <Exec Command="&quot;$(SolutionDir)FractureShaders\$(OutDir)FractureShaders.exe&quot; $(ProjectDir)&#xD;&#xA;xcopy &quot;$(ProjectDir)Data\Shaders\*&quot; &quot;$(TargetDir)Data\Shaders&quot; /deyi" />
+  </Target>
 
 </Project>
