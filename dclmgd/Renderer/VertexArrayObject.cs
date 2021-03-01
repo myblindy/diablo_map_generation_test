@@ -84,6 +84,10 @@ namespace dclmgd.Renderer
             foreach (var fi in typeof(TVertex).GetFields())
             {
                 GL.EnableVertexArrayAttrib(vertexArrayName, idx);
+                if(fi.GetCustomAttributes(typeof(FixedBufferAttribute), true).FirstOrDefault() is FixedBufferAttribute fba)
+                    if(fba.ElementType==typeof(int))
+                        GL.VertexArrayAttribIFormat(vertexArrayName, idx, fba.Length, )
+                    GL.VertexArrayAttribFormat()
                 GL.VertexArrayAttribFormat(vertexArrayName, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
                 offset += fieldSizes[fi.FieldType];
                 GL.VertexArrayAttribBinding(vertexArrayName, idx, 0);
@@ -113,6 +117,7 @@ namespace dclmgd.Renderer
         static readonly Dictionary<Type, VertexAttribType> fieldTypes = new()
         {
             [typeof(float)] = VertexAttribType.Float,
+            [typeof(int)] = VertexAttribType.Int,
             [typeof(Vector2)] = VertexAttribType.Float,
             [typeof(Vector3)] = VertexAttribType.Float,
             [typeof(Vector4)] = VertexAttribType.Float,

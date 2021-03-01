@@ -19,16 +19,36 @@ namespace dclmgd.Renderer
     class MeshModel
     {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        struct Vertex
+        unsafe struct Vertex
         {
             public Vector3 Position;
             public Vector3 Normal;
             public Vector2 UV;
             public Vector3 Tangent;
             public Vector3 BiTangent;
+            public fixed int BoneIds[4];
+            public fixed float BoneWeights[4];
 
-            public Vertex(Vector3 position, Vector3 normal, Vector2 uv, Vector3 tangent, Vector3 biTangent) =>
+            public Vertex(Vector3 position, Vector3 normal, Vector2 uv, Vector3 tangent, Vector3 biTangent, int[] boneIds, float[] boneWeights)
+            {
                 (Position, Normal, UV, Tangent, BiTangent) = (position, normal, uv, tangent, biTangent);
+
+                if (boneIds is not null)
+                {
+                    BoneIds[0] = boneIds[0];
+                    BoneIds[1] = boneIds[1];
+                    BoneIds[2] = boneIds[2];
+                    BoneIds[3] = boneIds[3];
+                }
+
+                if (boneWeights is not null)
+                {
+                    BoneWeights[0] = boneWeights[0];
+                    BoneWeights[1] = boneWeights[1];
+                    BoneWeights[2] = boneWeights[2];
+                    BoneWeights[3] = boneWeights[3];
+                }
+            }
         }
 
         enum TextureType { Diffuse, Normal }
@@ -112,7 +132,7 @@ namespace dclmgd.Renderer
                             .Zip(mesh.TextureCoordinateChannels[0].Select(v => new Vector2(v.X * material.TextureSMultiplier, v.Y * material.TextureTMultiplier)), (w, uv) => (w.v, w.n, uv))
                             .Zip(mesh.Tangents.Select(v => new Vector3(v.X, v.Y, v.Z)), (w, t) => (w.v, w.n, w.uv, t))
                             .Zip(mesh.BiTangents.Select(v => new Vector3(v.X, v.Y, v.Z)), (w, bt) => (w.v, w.n, w.uv, w.t, bt))
-                            .Select(w => new Vertex(w.v, w.n, w.uv, w.t, w.bt))
+                            .Select(w => new Vertex(w.v, w.n, w.uv, w.t, w.bt, null, null))
                             .ToArray(mesh.Vertices.Count),
                         indices.Cast<ushort>().ToArray(indices.Length)),
                     diffuseTexture,
