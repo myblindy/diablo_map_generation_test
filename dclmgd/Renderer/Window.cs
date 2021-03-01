@@ -94,8 +94,8 @@ namespace dclmgd.Renderer
                 shader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
                 shader.Set("light.specular", new Vector3(1f, 1f, 1f));
                 shader.Set("light.constant", 1.0f);
-                shader.Set("light.linear", 0.045f);
-                shader.Set("light.quadratic", 0.0075f);
+                shader.Set("light.linear", 0.01f);
+                shader.Set("light.quadratic", 0.001f);
             }
 
             // set the object shader shadow properties
