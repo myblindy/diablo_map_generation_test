@@ -84,12 +84,28 @@ namespace dclmgd.Renderer
             foreach (var fi in typeof(TVertex).GetFields())
             {
                 GL.EnableVertexArrayAttrib(vertexArrayName, idx);
-                if(fi.GetCustomAttributes(typeof(FixedBufferAttribute), true).FirstOrDefault() is FixedBufferAttribute fba)
-                    if(fba.ElementType==typeof(int))
-                        GL.VertexArrayAttribIFormat(vertexArrayName, idx, fba.Length, )
-                    GL.VertexArrayAttribFormat()
-                GL.VertexArrayAttribFormat(vertexArrayName, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
-                offset += fieldSizes[fi.FieldType];
+
+                if (fi.GetCustomAttributes(typeof(FixedBufferAttribute), true).FirstOrDefault() is FixedBufferAttribute fba)
+                    if (fba.ElementType == typeof(int))
+                    {
+                        GL.VertexArrayAttribIFormat(vertexArrayName, idx, fba.Length, fieldTypes[fba.ElementType], offset);
+                        offset += (uint)(sizeof(int) * fba.Length);
+                    }
+                    else if (fba.ElementType == typeof(float))
+                    {
+                        GL.VertexArrayAttribFormat(vertexArrayName, idx, fba.Length, fieldTypes[fba.ElementType], false, offset);
+                        offset += (uint)(sizeof(int) * fba.Length);
+                    }
+                    else
+                        throw new NotImplementedException();
+                else if (fi.FieldType != typeof(int))
+                {
+                    GL.VertexArrayAttribFormat(vertexArrayName, idx, fieldCounts[fi.FieldType], fieldTypes[fi.FieldType], false, offset);
+                    offset += fieldSizes[fi.FieldType];
+                }
+                else
+                    throw new NotImplementedException();
+
                 GL.VertexArrayAttribBinding(vertexArrayName, idx, 0);
 
                 ++idx;

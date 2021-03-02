@@ -13,12 +13,17 @@ layout(location = 2) in vec2 uv;
 layout(location = 3) in vec3 T;
 layout(location = 4) in vec3 B;
 
+layout(location = 5) in ivec4 boneIds; 
+layout(location = 6) in vec4 weights;
+
+const int MAX_BONES = 100;
+const int MAX_BONE_INFLUENCE = 4;
+uniform mat4 finalBonesMatrices[MAX_BONES];
 
 out vec3 fs_position;
 out vec3 fs_normal;
 out vec2 fs_uv;
 
-out mat3 TBN;
 
 void main()
 {
@@ -41,7 +46,6 @@ void main()
     fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 
-    TBN = mat3(T, B, normal);
 
     gl_Position = projection * view * vec4(fs_position, 1.0);
 }

@@ -13,6 +13,12 @@ layout(location = 2) in vec2 uv;
 layout(location = 3) in vec3 T;
 layout(location = 4) in vec3 B;
 
+layout(location = 5) in ivec4 boneIds; 
+layout(location = 6) in vec4 weights;
+
+const int MAX_BONES = 100;
+const int MAX_BONE_INFLUENCE = 4;
+uniform mat4 finalBonesMatrices[MAX_BONES];
 
 out vec3 fs_position;
 out vec3 fs_normal;
