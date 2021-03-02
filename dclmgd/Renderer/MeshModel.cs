@@ -60,9 +60,9 @@ namespace dclmgd.Renderer
             public readonly ShaderProgram lightProgram, shadowProgram;
             public readonly Matrix4x4 modelTransform;
 
-            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture, ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 model) =>
+            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture, ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 modelTransform) =>
                 (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform) =
-                    (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, model);
+                    (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, modelTransform);
         }
         readonly PerMeshData[] perMeshData;
 
@@ -123,7 +123,13 @@ namespace dclmgd.Renderer
                 var diffuseTexture = TryLoadTexture(path, mesh, TextureType.Diffuse);
                 var normalTexture = TryLoadTexture(path, mesh, TextureType.Normal);
 
-                var lightShaderName = normalTexture is null ? "object" : "object-normal";
+                var vertexBoneInfluence = mesh.Bones
+                    .SelectMany((bone, BoneIdx) => bone.VertexWeights.Select(vw => (BoneIdx, vw.VertexID, vw.Weight)))
+                    .GroupBy(w => w.VertexID)
+                    .Select(vg => (vId: vg.Key, ids: vg.Select(w => w.BoneIdx).ToArray(4, -1), weights: vg.Select(w => w.Weight).ToArray(4, 0)))
+                    .ToArraySequentialBy(mesh.VertexCount, w => w.vId, w => (w.ids, w.weights));
+
+                var lightShaderName = normalTexture is null ? mesh.HasBones ? "object-bones" : "object" : mesh.HasBones ? "object-normal-bones" : "object-normal";
 
                 perMeshDataSlot = new(
                     vao: VertexArrayObject<Vertex, ushort>.CreateStatic(
@@ -132,7 +138,8 @@ namespace dclmgd.Renderer
                             .Zip(mesh.TextureCoordinateChannels[0].Select(v => new Vector2(v.X * material.TextureSMultiplier, v.Y * material.TextureTMultiplier)), (w, uv) => (w.v, w.n, uv))
                             .Zip(mesh.Tangents.Select(v => new Vector3(v.X, v.Y, v.Z)), (w, t) => (w.v, w.n, w.uv, t))
                             .Zip(mesh.BiTangents.Select(v => new Vector3(v.X, v.Y, v.Z)), (w, bt) => (w.v, w.n, w.uv, w.t, bt))
-                            .Select(w => new Vertex(w.v, w.n, w.uv, w.t, w.bt, null, null))
+                            .Zip(vertexBoneInfluence, (w, bi) => (w.v, w.n, w.uv, w.t, w.bt, bi.ids, bi.weights))
+                            .Select(w => new Vertex(w.v, w.n, w.uv, w.t, w.bt, w.ids, w.weights))
                             .ToArray(mesh.Vertices.Count),
                         indices.Cast<ushort>().ToArray(indices.Length)),
                     diffuseTexture,
@@ -147,7 +154,7 @@ namespace dclmgd.Renderer
                     shadowProgram: ShaderProgramCache.Get("object-shadow", shader =>
                     {
                     }),
-                    model: transformsDictionary[mesh]);
+                    modelTransform: transformsDictionary[mesh]);
             }
         }
 

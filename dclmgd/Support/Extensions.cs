@@ -70,6 +70,30 @@ namespace dclmgd.Support
             return arr;
         }
 
+        public static T[] ToArray<T>(this IEnumerable<T> source, int length, T fill)
+        {
+            var arr = new T[length];
+
+            int idx = 0;
+            foreach (var item in source)
+                arr[idx++] = item;
+
+            for (; idx < length; ++idx)
+                arr[idx] = fill;
+
+            return arr;
+        }
+
+        public static TValue[] ToArraySequentialBy<TSource, TValue>(this IEnumerable<TSource> source, int length, Func<TSource, int> seqSelector, Func<TSource, TValue> valueSelector)
+        {
+            var arr = new TValue[length];
+
+            foreach (var item in source)
+                arr[seqSelector(item)] = valueSelector(item);
+
+            return arr;
+        }
+
         public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 assimpMat4x4) =>
             new(assimpMat4x4.A1, assimpMat4x4.A2, assimpMat4x4.A3, assimpMat4x4.A4,
                 assimpMat4x4.B1, assimpMat4x4.B2, assimpMat4x4.B3, assimpMat4x4.B4,

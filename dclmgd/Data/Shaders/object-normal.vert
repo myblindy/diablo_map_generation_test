@@ -22,22 +22,9 @@ out mat3 TBN;
 
 void main()
 {
-    vec4 totalPosition = vec4(0.0f);
-    for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
-    {
-        if(boneIds[i] == -1) 
-            continue;
-        if(boneIds[i] >= MAX_BONES) 
-        {
-            totalPosition = vec4(position, 1.0f);
-            break;
-        }
-        vec4 localPosition = finalBoneMatrices[boneIds[i]] * vec4(position, 1.0f);
-        totalPosition += localPosition * weights[i];
-        //vec3 localNormal = mat3(finalBoneMatrices[boneIds[i]]) * norm;
-   }
 
-    fs_position = vec3(model * vec4(totalPosition, 1.0));
+    fs_position = vec3(model * vec4(position, 1.0));
+
     fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 

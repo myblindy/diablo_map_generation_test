@@ -83,7 +83,7 @@ namespace dclmgd.Renderer
             camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
-            setShaderLight(ShaderProgramCache.Get("object"));
+            setShaderLight(ShaderProgramCache.Get("object-bones"));
             setShaderLight(ShaderProgramCache.Get("object-normal"));
 
             static void setShaderLight(ShaderProgram shader)
@@ -172,7 +172,7 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-            setShaderPositions(ShaderProgramCache.Get("object"));
+            setShaderPositions(ShaderProgramCache.Get("object-bones"));
             setShaderPositions(ShaderProgramCache.Get("object-normal"));
 
             void setShaderPositions(ShaderProgram shader)

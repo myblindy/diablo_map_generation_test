@@ -19,7 +19,7 @@ layout(location = 6) in vec4 weights;
 
 const int MAX_BONES = 100;
 const int MAX_BONE_INFLUENCE = 4;
-uniform mat4 finalBonesMatrices[MAX_BONES];
+uniform mat4 finalBoneMatrices[MAX_BONES];
 #endif
 
 out vec3 fs_position;
@@ -32,6 +32,7 @@ out mat3 TBN;
 
 void main()
 {
+#ifdef BONES
     vec4 totalPosition = vec4(0.0f);
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
@@ -47,7 +48,14 @@ void main()
         //vec3 localNormal = mat3(finalBoneMatrices[boneIds[i]]) * norm;
    }
 
-    fs_position = vec3(model * vec4(totalPosition, 1.0));
+
+    fs_position = vec3(model * totalPosition);
+#endif
+
+#ifndef BONES
+    fs_position = vec3(model * vec4(position, 1.0));
+#endif
+
     fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 

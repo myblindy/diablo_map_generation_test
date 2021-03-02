@@ -26,6 +26,7 @@ namespace FractureShaders
         static void Main(string[] args)
         {
             var reIfDef = new Regex(@"^\s*#ifdef\s+([\w-]+)\s*$");
+            var reIfNDef = new Regex(@"^\s*#ifndef\s+([\w-]+)\s*$");
             var reEndIf = new Regex(@"^\s*#endif\s*$");
 
             Console.WriteLine($"Fracturing shaders starting in {args[0]}.");
@@ -91,6 +92,15 @@ namespace FractureShaders
                         {
                             ++nesting;
                             if (!definesUsed.Contains(m.Groups[1].Value))
+                            {
+                                // ignore all nested ifdefs
+                                ignoreUntilNesting = nesting - 1;
+                            }
+                        }
+                        else if ((m = reIfNDef.Match(srcLine)).Success)
+                        {
+                            ++nesting;
+                            if (definesUsed.Contains(m.Groups[1].Value))
                             {
                                 // ignore all nested ifdefs
                                 ignoreUntilNesting = nesting - 1;
