@@ -76,6 +76,8 @@ namespace dclmgd.Renderer
 
             // load the model
             heroMeshModel = new("Data/Models/Actors/Hero");
+            heroMeshModel.CurrentAnimationName = "";
+            heroMeshModel.Update(0);
             wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
             // load the camera ubo
@@ -128,6 +130,8 @@ namespace dclmgd.Renderer
             if (up) camera.Position.Y += delta;
             if (down) camera.Position.Y -= delta;
             if (up || down) camera.Update();
+
+            //heroMeshModel.Update(args.Time);
         }
 
         double time;

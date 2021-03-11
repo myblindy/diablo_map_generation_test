@@ -111,10 +111,12 @@ namespace dclmgd.Renderer
                     var scaleMat = interpolateCurrentKeyFrame(scaleKeyFrames, kf => Matrix4x4.CreateScale(kf.Value), (kf0, kf1, scale) =>
                         Matrix4x4.CreateScale(Vector3.Lerp(kf0.Value, kf1.Value, (float)scale)));
 
-                    return posMat * rotMat * scaleMat;
+                    return scaleMat * rotMat * posMat;
                 }
             }
         }
+
+        const int MaxBones = 100;
 
         struct PerMeshData
         {
@@ -123,11 +125,12 @@ namespace dclmgd.Renderer
             public readonly ShaderProgram lightProgram, shadowProgram;
             public readonly Matrix4x4 modelTransform;
             public readonly Dictionary<int, Matrix4x4> boneOffsetMatrices;
+            public readonly Matrix4x4[] FinalBoneMatrices;
 
             public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture,
                 ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 modelTransform, Dictionary<int, Matrix4x4> boneOffsetMatrices) =>
-                    (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform, this.boneOffsetMatrices) =
-                        (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, modelTransform, boneOffsetMatrices);
+                    (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform, this.boneOffsetMatrices, FinalBoneMatrices) =
+                        (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, modelTransform, boneOffsetMatrices, Enumerable.Range(0, MaxBones).Select(_ => Matrix4x4.Identity).ToArray());
         }
         readonly PerMeshData[] perMeshData;
 
@@ -169,8 +172,6 @@ namespace dclmgd.Renderer
         readonly Dictionary<string, Animation> animations = new();
         readonly BoneNode rootBoneNode;
 
-        readonly Matrix4x4[] finalBoneMatrices = Enumerable.Range(0, 100).Select(_ => Matrix4x4.Identity).ToArray();
-
         double currentAnimationSec;
         string currentAnimationName;
         public string CurrentAnimationName { get => currentAnimationName; set => (currentAnimationName, currentAnimationSec) = (value, 0); }
@@ -201,7 +202,7 @@ namespace dclmgd.Renderer
                 {
                     Children = new BoneNode[node.ChildCount],
                     Id = boneIds.TryGetValue(node.Name, out var id) ? id : -1,
-                    Transform = node.Transform.ToNumerics(),
+                    Transform = Matrix4x4.Transpose(node.Transform.ToNumerics()),
                 };
 
                 mat = node.Transform.ToNumerics() * mat;
@@ -279,17 +280,30 @@ namespace dclmgd.Renderer
                 var bone = anim.Bones.FirstOrDefault(b => b.Id == boneNode.Id);
                 var nodeTransform = bone?[TimeSpan.FromSeconds(currentAnimationSec)] ?? boneNode.Transform;
                 var globalTransform = parentTransform * nodeTransform;
-                
+
+                if (boneNode.Id >= 0)
+                    for (int meshIdx = 0; meshIdx < perMeshData.Length; ++meshIdx)
+                    {
+                        var bindPoseTransform = perMeshData[meshIdx].boneOffsetMatrices[boneNode.Id];
+                        Matrix4x4.Invert(bindPoseTransform, out var invertedBindPoseTransform);
+                        perMeshData[meshIdx].FinalBoneMatrices[boneNode.Id] = globalTransform * bindPoseTransform;
+                    }
+
+                foreach (var child in boneNode.Children)
+                    calculateBoneTransforms(child, globalTransform);
             }
             calculateBoneTransforms(rootBoneNode, Matrix4x4.Identity);
         }
 
         public void Draw(bool shadowPass)
         {
-            foreach (var perMeshDataItem in perMeshData)
+            for (int meshidx = 0; meshidx < perMeshData.Length; ++meshidx)
             {
+                ref var perMeshDataItem = ref perMeshData[meshidx];
+
                 if (shadowPass)
                 {
+                    return;
                     perMeshDataItem.shadowProgram.Use();
                     perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform, true);
                 }
@@ -301,7 +315,7 @@ namespace dclmgd.Renderer
                     perMeshDataItem.lightProgram.Set("model", perMeshDataItem.modelTransform, true);
                     perMeshDataItem.lightProgram.Set("material.shininess", material.Shininess);
                     if (animations.Any())
-                        perMeshDataItem.lightProgram.Set("finalBoneMatrices[0]", ref finalBoneMatrices[0], finalBoneMatrices.Length, true);
+                        perMeshDataItem.lightProgram.Set("finalBoneMatrices[0]", ref perMeshDataItem.FinalBoneMatrices[0], perMeshDataItem.FinalBoneMatrices.Length, true);
                 }
 
                 perMeshDataItem.vao.Draw(PrimitiveType.Triangles);
