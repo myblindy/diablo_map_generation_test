@@ -33,30 +33,36 @@ out mat3 TBN;
 void main()
 {
 #ifdef BONES
-    vec4 totalPosition = vec4(0.0f);
+    vec4 totalPosition = vec4(0.0);
+    vec4 totalNormal = vec4(0.0);
+
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
-        if(boneIds[i] == -1) 
-            continue;
-        if(boneIds[i] >= MAX_BONES) 
-        {
-            totalPosition = vec4(position, 1.0f);
-            break;
-        }
-        vec4 localPosition = finalBoneMatrices[boneIds[i]] * vec4(position, 1.0f);
+        if(boneIds[i] == -1) continue;
+        //if(boneIds[i] >= MAX_BONES) 
+        //{
+        //    totalPosition = vec4(position, 1.0f);
+        //    break;
+        //}
+
+        mat4 boneTransform = finalBoneMatrices[boneIds[i]];
+
+        vec4 localPosition = boneTransform * vec4(position, 1.0);
         totalPosition += localPosition * weights[i];
-        //vec3 localNormal = mat3(finalBoneMatrices[boneIds[i]]) * norm;
+
+        vec4 localNormal = boneTransform * vec4(normal, 0.0);
+        totalNormal += localNormal * weights[i];
    }
 
-
     fs_position = vec3(model * totalPosition);
+    fs_normal = transpose(inverse(mat3(model))) * totalNormal.xyz;
 #endif
 
 #ifndef BONES
     fs_position = vec3(model * vec4(position, 1.0));
+    fs_normal = transpose(inverse(mat3(model))) * normal;
 #endif
 
-    fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 
 #ifdef NORMAL_MAP

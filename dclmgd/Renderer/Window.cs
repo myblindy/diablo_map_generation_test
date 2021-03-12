@@ -131,7 +131,7 @@ namespace dclmgd.Renderer
             if (down) camera.Position.Y -= delta;
             if (up || down) camera.Update();
 
-            //heroMeshModel.Update(args.Time);
+            heroMeshModel.Update(args.Time);
         }
 
         double time;

@@ -23,8 +23,8 @@ void main()
 {
 
     fs_position = vec3(model * vec4(position, 1.0));
-
     fs_normal = transpose(inverse(mat3(model))) * normal;
+
     fs_uv = uv;
 
 
