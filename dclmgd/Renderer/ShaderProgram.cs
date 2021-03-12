@@ -98,6 +98,8 @@ namespace dclmgd.Renderer
 
         public void Set(string name, Matrix4x4 mat, bool transpose) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, transpose, ref mat.M11);
         public void Set(string name, ref Matrix4x4 mat, bool transpose) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], 1, transpose, ref mat.M11);
+        public void Set(string name, Matrix4x4 mat, int count, bool transpose) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], count, transpose, ref mat.M11);
+        public void Set(string name, ref Matrix4x4 mat, int count, bool transpose) => GL.ProgramUniformMatrix4(programName, attributeLocations[name], count, transpose, ref mat.M11);
 
         public void Set(string name, Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);
         public void Set(string name, ref Vector3 vec) => GL.ProgramUniform3(programName, attributeLocations[name], 1, ref vec.X);

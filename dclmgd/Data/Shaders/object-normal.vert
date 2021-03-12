@@ -13,6 +13,7 @@ layout(location = 2) in vec2 uv;
 layout(location = 3) in vec3 T;
 layout(location = 4) in vec3 B;
 
+
 out vec3 fs_position;
 out vec3 fs_normal;
 out vec2 fs_uv;
@@ -21,7 +22,9 @@ out mat3 TBN;
 
 void main()
 {
+
     fs_position = vec3(model * vec4(position, 1.0));
+
     fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 

@@ -46,6 +46,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Data\Shaders\" />
+  </ItemGroup>
+
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
     <Exec Command="&quot;$(SolutionDir)FractureShaders\$(OutDir)FractureShaders.exe&quot; $(ProjectDir)&#xD;&#xA;xcopy &quot;$(ProjectDir)Data\Shaders\*&quot; &quot;$(TargetDir)Data\Shaders&quot; /deyi" />
   </Target>

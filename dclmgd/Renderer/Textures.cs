@@ -62,10 +62,23 @@ namespace dclmgd.Renderer
             {
                 case TextureStorageType.Rgbx:
                     {
-                        using var imgData = Image.Load<Bgra32>(path);
-                        GL.TextureStorage2D(Name, 1, SizedInternalFormat.Rgba8, imgData.Width, imgData.Height);
-                        fixed (Bgra32* p = imgData.GetPixelRowSpan(0))
-                            GL.TextureSubImage2D(Name, 0, 0, 0, imgData.Width, imgData.Height, PixelFormat.Bgra, PixelType.UnsignedByte, new IntPtr(p));
+                        var imageInfo = Image.Identify(path);
+                        if (imageInfo.PixelType.BitsPerPixel == 24 && imageInfo.PixelType.AlphaRepresentation != PixelAlphaRepresentation.Unassociated)
+                        {
+                            using var img = Image.Load<Bgr24>(path);
+                            GL.TextureStorage2D(Name, 1, (SizedInternalFormat)All.Rgb8, img.Width, img.Height);
+                            fixed (Bgr24* p = img.GetPixelRowSpan(0))
+                                GL.TextureSubImage2D(Name, 0, 0, 0, img.Width, img.Height, PixelFormat.Bgr, PixelType.UnsignedByte, new IntPtr(p));
+                        }
+                        else if (imageInfo.PixelType.BitsPerPixel == 24 || imageInfo.PixelType.BitsPerPixel == 32)
+                        {
+                            using var img = Image.Load<Bgra32>(path);
+                            GL.TextureStorage2D(Name, 1, (SizedInternalFormat)All.Rgba8, img.Width, img.Height);
+                            fixed (Bgra32* p = img.GetPixelRowSpan(0))
+                                GL.TextureSubImage2D(Name, 0, 0, 0, img.Width, img.Height, PixelFormat.Bgra, PixelType.UnsignedByte, new IntPtr(p));
+                        }
+                        else
+                            throw new NotImplementedException();
                         break;
                     }
 
@@ -95,7 +108,7 @@ namespace dclmgd.Renderer
             {
                 case TextureStorageType.DepthOnly:
                     {
-                        GL.TextureStorage2D(Name, 1, (SizedInternalFormat)OpenTK.Graphics.ES30.SizedDepthStencilFormat.DepthComponent32f, width, height);
+                        GL.TextureStorage2D(Name, 1, (SizedInternalFormat)All.DepthComponent32f, width, height);
                         break;
                     }
 

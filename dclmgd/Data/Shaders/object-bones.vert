@@ -1,4 +1,4 @@
-﻿#version 460 core
+#version 460 core
 
 layout(location = 0) uniform mat4 model;
 
@@ -13,26 +13,20 @@ layout(location = 2) in vec2 uv;
 layout(location = 3) in vec3 T;
 layout(location = 4) in vec3 B;
 
-#ifdef BONES
 layout(location = 5) in ivec4 boneIds; 
 layout(location = 6) in vec4 weights;
 
 const int MAX_BONES = 100;
 const int MAX_BONE_INFLUENCE = 4;
 uniform mat4 finalBoneMatrices[MAX_BONES];
-#endif
 
 out vec3 fs_position;
 out vec3 fs_normal;
 out vec2 fs_uv;
 
-#ifdef NORMAL_MAP
-out mat3 TBN;
-#endif
 
 void main()
 {
-#ifdef BONES
     vec4 totalPosition = vec4(0.0f);
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
@@ -50,18 +44,11 @@ void main()
 
 
     fs_position = vec3(model * totalPosition);
-#endif
 
-#ifndef BONES
-    fs_position = vec3(model * vec4(position, 1.0));
-#endif
 
     fs_normal = transpose(inverse(mat3(model))) * normal;
     fs_uv = uv;
 
-#ifdef NORMAL_MAP
-    TBN = mat3(T, B, normal);
-#endif
 
     gl_Position = projection * view * vec4(fs_position, 1.0);
 }

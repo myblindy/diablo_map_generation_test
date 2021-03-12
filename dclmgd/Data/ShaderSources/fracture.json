@@ -3,6 +3,10 @@
     {
       "name": "NORMAL_MAP",
       "fileNamePart": "normal"
+    },
+    {
+      "name": "BONES",
+      "fileNamePart": "bones"
     }
   ]
 }

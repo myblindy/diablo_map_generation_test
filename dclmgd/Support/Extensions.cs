@@ -1,7 +1,11 @@
-﻿using System;
+﻿using Assimp;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+
 using Matrix4x4 = System.Numerics.Matrix4x4;
+using Quaternion = System.Numerics.Quaternion;
 
 namespace dclmgd.Support
 {
@@ -70,10 +74,40 @@ namespace dclmgd.Support
             return arr;
         }
 
+        public static T[] ToArray<T>(this IEnumerable<T> source, int length, T fill)
+        {
+            var arr = new T[length];
+
+            int idx = 0;
+            foreach (var item in source)
+                arr[idx++] = item;
+
+            for (; idx < length; ++idx)
+                arr[idx] = fill;
+
+            return arr;
+        }
+
+        public static TValue[] ToArraySequentialBy<TSource, TValue>(this IEnumerable<TSource> source, int length, Func<TSource, int> seqSelector, Func<TSource, TValue> valueSelector)
+        {
+            var arr = new TValue[length];
+
+            foreach (var item in source)
+                arr[seqSelector(item)] = valueSelector(item);
+
+            return arr;
+        }
+
         public static Matrix4x4 ToNumerics(this Assimp.Matrix4x4 assimpMat4x4) =>
             new(assimpMat4x4.A1, assimpMat4x4.A2, assimpMat4x4.A3, assimpMat4x4.A4,
                 assimpMat4x4.B1, assimpMat4x4.B2, assimpMat4x4.B3, assimpMat4x4.B4,
                 assimpMat4x4.C1, assimpMat4x4.C2, assimpMat4x4.C3, assimpMat4x4.C4,
                 assimpMat4x4.D1, assimpMat4x4.D2, assimpMat4x4.D3, assimpMat4x4.D4);
+
+        public static Vector2 ToNumerics(this Vector2D assimpVec2) => new(assimpVec2.X, assimpVec2.Y);
+
+        public static Vector3 ToNumerics(this Vector3D assimpVec3) => new(assimpVec3.X, assimpVec3.Y, assimpVec3.Z);
+
+        public static Quaternion ToNumerics(this Assimp.Quaternion assimpQ) => new(assimpQ.X, assimpQ.Y, assimpQ.Z, assimpQ.W);
     }
 }

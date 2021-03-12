@@ -26,6 +26,7 @@ namespace FractureShaders
         static void Main(string[] args)
         {
             var reIfDef = new Regex(@"^\s*#ifdef\s+([\w-]+)\s*$");
+            var reIfNDef = new Regex(@"^\s*#ifndef\s+([\w-]+)\s*$");
             var reEndIf = new Regex(@"^\s*#endif\s*$");
 
             Console.WriteLine($"Fracturing shaders starting in {args[0]}.");
@@ -47,7 +48,7 @@ namespace FractureShaders
             // first pass, for each file track every referenced define
             var perFileDefines = allFiles
                 .Select(f => (path: f.file, lines: File.ReadAllLines(f.file)))
-                .Select(w => (w.path, w.lines, defs: w.lines.Select(l => reIfDef.Match(l)).Where(m => m.Success).Select(m => m.Groups[1].Value).Distinct().Where(d => cfg.Defines.Any(dd => dd.Name == d)).ToHashSet()))
+                .Select(w => (w.path, w.lines, defs: w.lines.Select(l => reIfDef.Match(l)).Where(m => m.Success).Select(m => m.Groups[1].Value).Distinct().Where(d => cfg.Defines.Any(dd => dd.Name == d)).OrderBy(w => w).ToList()))
                 .ToDictionary(w => w.path, w => w.defs);
 
             // group files by file name and share the superset of defines between them
@@ -56,7 +57,7 @@ namespace FractureShaders
                 {
                     var superSet = new HashSet<string>();
                     g.SelectMany(w => w.Value).ForEach(w => superSet.Add(w));
-                    superSet.ForEach(def => g.ForEach(w => w.Value.Add(def)));
+                    g.ForEach(w => { w.Value.Clear(); w.Value.AddRange(superSet); });
                 });
 
             // parse every shader file
@@ -73,7 +74,7 @@ namespace FractureShaders
 
                 foreach (var combination in new Combination(allDefinesUsed.Count).GetRowsForAllPicks().Append(new()))
                 {
-                    var definedUsed = allDefinesUsed.Where((v, idx) => combination.Contains(idx)).ToHashSet();
+                    var definesUsed = allDefinesUsed.Where((v, idx) => combination.Contains(idx)).ToHashSet();
 
                     string realDstPath = Path.Combine(
                         Path.GetDirectoryName(dstPath),
@@ -90,7 +91,16 @@ namespace FractureShaders
                         if (m.Success)
                         {
                             ++nesting;
-                            if (!definedUsed.Contains(m.Groups[1].Value))
+                            if (!definesUsed.Contains(m.Groups[1].Value))
+                            {
+                                // ignore all nested ifdefs
+                                ignoreUntilNesting = nesting - 1;
+                            }
+                        }
+                        else if ((m = reIfNDef.Match(srcLine)).Success)
+                        {
+                            ++nesting;
+                            if (definesUsed.Contains(m.Groups[1].Value))
                             {
                                 // ignore all nested ifdefs
                                 ignoreUntilNesting = nesting - 1;

@@ -76,6 +76,8 @@ namespace dclmgd.Renderer
 
             // load the model
             heroMeshModel = new("Data/Models/Actors/Hero");
+            heroMeshModel.CurrentAnimationName = "";
+            heroMeshModel.Update(0);
             wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
             // load the camera ubo
@@ -83,7 +85,7 @@ namespace dclmgd.Renderer
             camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
-            setShaderLight(ShaderProgramCache.Get("object"));
+            setShaderLight(ShaderProgramCache.Get("object-bones"));
             setShaderLight(ShaderProgramCache.Get("object-normal"));
 
             static void setShaderLight(ShaderProgram shader)
@@ -94,8 +96,8 @@ namespace dclmgd.Renderer
                 shader.Set("light.diffuse", new Vector3(.5f, .5f, .5f));
                 shader.Set("light.specular", new Vector3(1f, 1f, 1f));
                 shader.Set("light.constant", 1.0f);
-                shader.Set("light.linear", 0.045f);
-                shader.Set("light.quadratic", 0.0075f);
+                shader.Set("light.linear", 0.01f);
+                shader.Set("light.quadratic", 0.001f);
             }
 
             // set the object shader shadow properties
@@ -128,6 +130,8 @@ namespace dclmgd.Renderer
             if (up) camera.Position.Y += delta;
             if (down) camera.Position.Y -= delta;
             if (up || down) camera.Update();
+
+            //heroMeshModel.Update(args.Time);
         }
 
         double time;
@@ -172,7 +176,7 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-            setShaderPositions(ShaderProgramCache.Get("object"));
+            setShaderPositions(ShaderProgramCache.Get("object-bones"));
             setShaderPositions(ShaderProgramCache.Get("object-normal"));
 
             void setShaderPositions(ShaderProgram shader)
