@@ -1,4 +1,4 @@
 {
   "$schema": "../../../../Schemas/material.json",
-  "shininess": 32
+  "shininess": 1
 }
