@@ -61,24 +61,66 @@ namespace dclmgd.Renderer
             public TimeSpan Time { get; set; }
         }
 
-        class Bone
+        struct PerMeshData
+        {
+            public readonly VertexArrayObject<Vertex, ushort> vao;
+            public readonly Texture2D diffuseTexture, normalTexture;
+            public readonly ShaderProgram lightProgram, shadowProgram;
+            public readonly Matrix4x4 modelTransform;
+
+            /// <summary>Per-bone inverse bind transform, moving from bone-space origin to model-space origin. Bones unused by the mesh are initialized with mat4(0).</summary>
+            public readonly Matrix4x4[] InverseBindTransforms;
+
+            /// <summary>Per-bone final model-space transforms to be send to the vertex shader. Bones unused by the mesh are initialized with the identity matrix.</summary>
+            public readonly Matrix4x4[] FinalBoneMatrices;
+
+            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture,
+                ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 modelTransform, Matrix4x4[] InverseBindTransforms) =>
+                    (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform, this.InverseBindTransforms, FinalBoneMatrices) =
+                        (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, modelTransform, InverseBindTransforms, InverseBindTransforms?.Select(_ => Matrix4x4.Identity).ToArray());
+        }
+        readonly PerMeshData[] perMeshData;
+
+        static readonly AssimpContext assimpContext = new();
+
+        static Texture2D TryLoadTexture(string meshPath, Mesh mesh, TextureType textureType)
+        {
+            var texturesPath = Path.Combine(meshPath, mesh.Name);
+            return tryLoad("png") ?? tryLoad("jpg");
+
+            Texture2D tryLoad(string ext)
+            {
+                var texturePath = Path.Combine(texturesPath, $"{textureType}.{ext}");
+                return File.Exists(texturePath) ? new(texturePath, TextureStorageType.Rgbx, TextureFilteringType.LinearMinLinearMag, TextureClampingType.Repeat) : null;
+            }
+        }
+
+        class MaterialType
+        {
+            public float Shininess { get; set; } = 1;
+            public float TextureSMultiplier { get; set; } = 1;
+            public float TextureTMultiplier { get; set; } = 1;
+        }
+        readonly MaterialType material;
+
+        class BoneNode
+        {
+            public Matrix4x4 Transform { get; init; }
+            public int Id { get; init; }
+            public BoneNode[] Children { get; init; }
+        }
+
+        class BoneAnimation
         {
             readonly KeyFrame<Vector3>[] positionKeyFrames;
             readonly KeyFrame<Quaternion>[] rotationKeyFrames;
             readonly KeyFrame<Vector3>[] scaleKeyFrames;
 
-            readonly string name;
-            public int Id { get; }
-
-            public Bone(int id, NodeAnimationChannel channel)
-            {
-                (name, Id) = (channel.NodeName, id);
-
+            public BoneAnimation(NodeAnimationChannel channel) =>
                 (positionKeyFrames, rotationKeyFrames, scaleKeyFrames) =
                     (channel.PositionKeys.Select(vk => new KeyFrame<Vector3> { Value = vk.Value.ToNumerics(), Time = TimeSpan.FromSeconds(vk.Time) }).ToArray(channel.PositionKeyCount),
                     channel.RotationKeys.Select(vk => new KeyFrame<Quaternion> { Value = vk.Value.ToNumerics(), Time = TimeSpan.FromSeconds(vk.Time) }).ToArray(channel.RotationKeyCount),
                     channel.ScalingKeys.Select(vk => new KeyFrame<Vector3> { Value = vk.Value.ToNumerics(), Time = TimeSpan.FromSeconds(vk.Time) }).ToArray(channel.ScalingKeyCount));
-            }
 
             public Matrix4x4 this[TimeSpan time]
             {
@@ -111,61 +153,15 @@ namespace dclmgd.Renderer
                     var scaleMat = interpolateCurrentKeyFrame(scaleKeyFrames, kf => Matrix4x4.CreateScale(kf.Value), (kf0, kf1, scale) =>
                         Matrix4x4.CreateScale(Vector3.Lerp(kf0.Value, kf1.Value, (float)scale)));
 
-                    return scaleMat * rotMat * posMat;
+                    return rotMat * posMat/* * scaleMat*/;
                 }
             }
         }
 
-        const int MaxBones = 100;
-
-        struct PerMeshData
-        {
-            public readonly VertexArrayObject<Vertex, ushort> vao;
-            public readonly Texture2D diffuseTexture, normalTexture;
-            public readonly ShaderProgram lightProgram, shadowProgram;
-            public readonly Matrix4x4 modelTransform;
-            public readonly Dictionary<int, Matrix4x4> boneOffsetMatrices;
-            public readonly Matrix4x4[] FinalBoneMatrices;
-
-            public PerMeshData(VertexArrayObject<Vertex, ushort> vao, Texture2D diffuseTexture, Texture2D normalTexture,
-                ShaderProgram lightProgram, ShaderProgram shadowProgram, Matrix4x4 modelTransform, Dictionary<int, Matrix4x4> boneOffsetMatrices) =>
-                    (this.vao, this.diffuseTexture, this.normalTexture, this.lightProgram, this.shadowProgram, this.modelTransform, this.boneOffsetMatrices, FinalBoneMatrices) =
-                        (vao, diffuseTexture, normalTexture, lightProgram, shadowProgram, modelTransform, boneOffsetMatrices, Enumerable.Range(0, MaxBones).Select(_ => Matrix4x4.Identity).ToArray());
-        }
-        readonly PerMeshData[] perMeshData;
-
-        static readonly AssimpContext assimpContext = new();
-
-        static Texture2D TryLoadTexture(string meshPath, Mesh mesh, TextureType textureType)
-        {
-            var texturesPath = Path.Combine(meshPath, mesh.Name);
-            return tryLoad("png") ?? tryLoad("jpg");
-
-            Texture2D tryLoad(string ext)
-            {
-                var texturePath = Path.Combine(texturesPath, $"{textureType}.{ext}");
-                return File.Exists(texturePath) ? new(texturePath, TextureStorageType.Rgbx, TextureFilteringType.LinearMinLinearMag, TextureClampingType.Repeat) : null;
-            }
-        }
-
-        class MaterialType
-        {
-            public float Shininess { get; set; } = 1;
-            public float TextureSMultiplier { get; set; } = 1;
-            public float TextureTMultiplier { get; set; } = 1;
-        }
-        readonly MaterialType material;
-
-        class BoneNode
-        {
-            public Matrix4x4 Transform;
-            public int Id;
-            public BoneNode[] Children;
-        }
-
         class Animation
         {
-            public Bone[] Bones { get; init; }
+            /// <summary> Per-bone keyframe animations. Bones unused in this animation are allocated but left as <c>null</c>.</summary>
+            public BoneAnimation[] BoneAnimations { get; init; }
             public TimeSpan Duration { get; init; }
         }
 
@@ -182,14 +178,12 @@ namespace dclmgd.Renderer
                 /*| PostProcessSteps.RemoveRedundantMaterials*/ | PostProcessSteps.Triangulate | PostProcessSteps.JoinIdenticalVertices | PostProcessSteps.LimitBoneWeights
                 /*| PostProcessSteps.MakeLeftHanded*/ | PostProcessSteps.GenerateBoundingBoxes | PostProcessSteps.CalculateTangentSpace);
 
-            Dictionary<string, int> boneIds = new();
             int maxBoneIds = 0;
+            var boneIds = scene.Animations.SelectMany(a => a.NodeAnimationChannels.Select(nac => nac.NodeName)).Distinct().ToDictionary(w => w, w => maxBoneIds++);
             foreach (var animation in scene.Animations)
                 animations.Add(animation.Name, new()
                 {
-                    Bones = animation.NodeAnimationChannels
-                        .Select(node => new Bone(boneIds.TryGetValue(node.NodeName, out var id) ? id : boneIds[node.NodeName] = maxBoneIds++, node))
-                        .ToArray(),
+                    BoneAnimations = animation.NodeAnimationChannels.ToArraySequentialBy(maxBoneIds, node => boneIds[node.NodeName], node => new BoneAnimation(node)),
                     Duration = TimeSpan.FromSeconds(animation.DurationInTicks * animation.TicksPerSecond),
                 });
 
@@ -202,7 +196,7 @@ namespace dclmgd.Renderer
                 {
                     Children = new BoneNode[node.ChildCount],
                     Id = boneIds.TryGetValue(node.Name, out var id) ? id : -1,
-                    Transform = Matrix4x4.Transpose(node.Transform.ToNumerics()),
+                    Transform = node.Transform.ToNumerics(),
                 };
 
                 mat = node.Transform.ToNumerics() * mat;
@@ -264,7 +258,7 @@ namespace dclmgd.Renderer
                     {
                     }),
                     modelTransform: transformsDictionary[mesh],
-                    boneOffsetMatrices: mesh.BoneCount == 0 ? null : mesh.Bones.ToDictionary(b => boneIds[b.Name], b => b.OffsetMatrix.ToNumerics()));
+                    InverseBindTransforms: mesh.BoneCount == 0 ? null : mesh.Bones.ToArraySequentialBy(maxBoneIds, b => boneIds[b.Name], b => b.OffsetMatrix.ToNumerics()));
             }
         }
 
@@ -277,17 +271,18 @@ namespace dclmgd.Renderer
 
             void calculateBoneTransforms(BoneNode boneNode, Matrix4x4 parentTransform)
             {
-                var bone = anim.Bones.FirstOrDefault(b => b.Id == boneNode.Id);
-                var nodeTransform = bone?[TimeSpan.FromSeconds(currentAnimationSec)] ?? boneNode.Transform;
+                var boneAnimation = boneNode.Id >= 0 ? anim.BoneAnimations[boneNode.Id] : null;
+
+                // bone-space transform of this bone
+                var nodeTransform = boneAnimation?[TimeSpan.FromSeconds(currentAnimationSec)] ?? /*boneNode.Transform*/Matrix4x4.Identity;
+
+                // model-space transform of this bone
                 var globalTransform = parentTransform * nodeTransform;
 
+                // subtract the original bind position of this bone to get the real pose position
                 if (boneNode.Id >= 0)
                     for (int meshIdx = 0; meshIdx < perMeshData.Length; ++meshIdx)
-                    {
-                        var bindPoseTransform = perMeshData[meshIdx].boneOffsetMatrices[boneNode.Id];
-                        Matrix4x4.Invert(bindPoseTransform, out var invertedBindPoseTransform);
-                        perMeshData[meshIdx].FinalBoneMatrices[boneNode.Id] = globalTransform * bindPoseTransform;
-                    }
+                        perMeshData[meshIdx].FinalBoneMatrices[boneNode.Id] = globalTransform * perMeshData[meshIdx].InverseBindTransforms[boneNode.Id];
 
                 foreach (var child in boneNode.Children)
                     calculateBoneTransforms(child, globalTransform);
