@@ -94,7 +94,7 @@ namespace dclmgd.Renderer
                     else if (fba.ElementType == typeof(float))
                     {
                         GL.VertexArrayAttribFormat(vertexArrayName, idx, fba.Length, fieldTypes[fba.ElementType], false, offset);
-                        offset += (uint)(sizeof(int) * fba.Length);
+                        offset += (uint)(sizeof(float) * fba.Length);
                     }
                     else
                         throw new NotImplementedException();
