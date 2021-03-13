@@ -28,6 +28,7 @@ namespace dclmgd.Renderer
                 StartFocused = true,
                 StartVisible = true,
                 Size = new(800, 600),
+                WindowState = WindowState.Maximized,
                 Title = "dclmgd",
                 Flags = ContextFlags.ForwardCompatible,
             })
@@ -36,8 +37,12 @@ namespace dclmgd.Renderer
 
         protected override void OnResize(ResizeEventArgs e)
         {
-            matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(70f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
-            matricesUbo.Update();
+            if (matricesUbo is not null)
+            {
+                matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(70f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
+                matricesUbo.Update();
+            }
+
             base.OnResize(e);
         }
 
@@ -75,9 +80,7 @@ namespace dclmgd.Renderer
             }, IntPtr.Zero);
 
             // load the model
-            heroMeshModel = new("Data/Models/Actors/Hero");
-            heroMeshModel.CurrentAnimationName = "";
-            heroMeshModel.Update(0);
+            heroMeshModel = new("Data/Models/Actors/Hero") { CurrentAnimationName = "" };
             wallsMeshModel = new("Data/Models/MapObjects/DemoWall");
 
             // load the camera ubo
@@ -101,8 +104,8 @@ namespace dclmgd.Renderer
             }
 
             // set the object shader shadow properties
-            var objectShadowShader = ShaderProgramCache.Get("object-shadow");
-            objectShadowShader.Set("farPlane", shadowFarPlane);
+            ShaderProgramCache.Get("object-shadow").Set("farPlane", shadowFarPlane);
+            ShaderProgramCache.Get("object-shadow-bones").Set("farPlane", shadowFarPlane);
 
             // shadow map
             shadowMap = new(shadowMapResolution, shadowMapResolution, TextureStorageType.DepthOnly, TextureFilteringType.NearestMinNearestMag, TextureClampingType.ClampToEdge);
@@ -114,18 +117,24 @@ namespace dclmgd.Renderer
         bool up, down;
         protected override void OnKeyDown(KeyboardKeyEventArgs e)
         {
-            if (e.Key == Keys.Up) up = true;
-            if (e.Key == Keys.Down) down = true;
+            if (e.Key == Keys.Escape) Close();
+            else if (e.Key == Keys.Up) up = true;
+            else if (e.Key == Keys.Down) down = true;
         }
 
         protected override void OnKeyUp(KeyboardKeyEventArgs e)
         {
             if (e.Key == Keys.Up) up = false;
-            if (e.Key == Keys.Down) down = false;
+            else if (e.Key == Keys.Down) down = false;
         }
 
+        double totalTimeSec;
+        int totalFrames;
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
+            (totalFrames, totalTimeSec) = (totalFrames + 1, totalTimeSec + args.Time);
+            if (totalFrames % 180 == 179) Title = $"dclmgd - {totalFrames / totalTimeSec:0.00} FPS, {(1 - (RenderTime + UpdateTime) / totalTimeSec) * 100:0.0000}% idle";
+
             const float delta = 0.1f;
             if (up) camera.Position.Y += delta;
             if (down) camera.Position.Y -= delta;
@@ -134,13 +143,10 @@ namespace dclmgd.Renderer
             heroMeshModel.Update(args.Time);
         }
 
-        double time;
         protected override void OnRenderFrame(FrameEventArgs args)
         {
-            time += args.Time;
-
             const float lightSpeedMultiplier = 1f;
-            var lightPosition = new Vector3(MathF.Sin((float)(time * lightSpeedMultiplier)) * 5f, 4f, MathF.Cos((float)(time * lightSpeedMultiplier)) * 5f);
+            var lightPosition = new Vector3(MathF.Sin((float)(totalTimeSec * lightSpeedMultiplier)) * 5f, 6f, MathF.Cos((float)(totalTimeSec * lightSpeedMultiplier)) * 5f);
 
             void RenderScene(bool shadowPass)
             {
@@ -164,9 +170,14 @@ namespace dclmgd.Renderer
                 Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, 1), new(0, -1, 0)) * shadowProjection,
                 Matrix4x4.CreateLookAt(lightPosition, lightPosition + new Vector3(0, 0, -1), new(0, -1, 0)) * shadowProjection,
             };
-            var objectShadowShader = ShaderProgramCache.Get("object-shadow");
-            shadowTransforms.ForEach((t, idx) => objectShadowShader.Set($"shadowMatrices[{idx}]", ref t, false));
-            objectShadowShader.Set("lightPos", ref lightPosition);
+            updateShadowShader(ShaderProgramCache.Get("object-shadow"));
+            updateShadowShader(ShaderProgramCache.Get("object-shadow-bones"));
+
+            void updateShadowShader(ShaderProgram shader)
+            {
+                shadowTransforms.ForEach((t, idx) => shader.Set($"shadowMatrices[{idx}]", ref t, false));
+                shader.Set("lightPos", ref lightPosition);
+            }
 
             RenderScene(true);
             FrameBuffer.Unbind();
@@ -176,10 +187,10 @@ namespace dclmgd.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             matricesUbo.Bind(0);
-            setShaderPositions(ShaderProgramCache.Get("object-bones"));
-            setShaderPositions(ShaderProgramCache.Get("object-normal"));
+            updateLightShaders(ShaderProgramCache.Get("object-bones"));
+            updateLightShaders(ShaderProgramCache.Get("object-normal"));
 
-            void setShaderPositions(ShaderProgram shader)
+            void updateLightShaders(ShaderProgram shader)
             {
                 shader.Set("view_position", ref camera.Position);
                 shader.Set("light.position", ref lightPosition);

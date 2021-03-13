@@ -28,7 +28,7 @@ void main()
 
     fs_uv = uv;
 
-    TBN = mat3(T, B, normal);
+    TBN = mat3(T, B, fs_normal);
 
     gl_Position = projection * view * vec4(fs_position, 1.0);
 }

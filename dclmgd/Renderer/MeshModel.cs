@@ -198,7 +198,7 @@ namespace dclmgd.Renderer
                 };
 
                 if (!skip)
-                    mat = node.Transform.ToNumerics() * mat;
+                    mat *= node.Transform.ToNumerics();
                 foreach (var meshIndex in node.MeshIndices)
                     transformsDictionary[scene.Meshes[meshIndex]] = mat;
                 int childIdx = 0;
@@ -232,6 +232,7 @@ namespace dclmgd.Renderer
                     .ToArraySequentialBy(mesh.VertexCount, w => w.vId, w => (w.ids, w.weights));
 
                 var lightShaderName = normalTexture is null ? mesh.HasBones ? "object-bones" : "object" : mesh.HasBones ? "object-normal-bones" : "object-normal";
+                var shadowShaderName = mesh.HasBones ? "object-shadow-bones" : "object-shadow";
 
                 perMeshDataSlot = new(
                     vao: VertexArrayObject<Vertex, ushort>.CreateStatic(
@@ -253,7 +254,7 @@ namespace dclmgd.Renderer
                         if (normalTexture is not null)
                             shader.Set("material.normal", 2);
                     }),
-                    shadowProgram: ShaderProgramCache.Get("object-shadow", shader =>
+                    shadowProgram: ShaderProgramCache.Get(shadowShaderName, shader =>
                     {
                     }),
                     modelTransform: transformsDictionary[mesh],
@@ -298,6 +299,8 @@ namespace dclmgd.Renderer
                 if (shadowPass)
                 {
                     perMeshDataItem.shadowProgram.Use();
+                    if (animations.Any())
+                        perMeshDataItem.shadowProgram.Set("finalBoneMatrices[0]", ref perMeshDataItem.FinalBoneMatrices[0], perMeshDataItem.FinalBoneMatrices.Length, true);
                     perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform, true);
                 }
                 else

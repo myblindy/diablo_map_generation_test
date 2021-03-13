@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <asset>
     <contributor>
       <author>Blender User</author>
@@ -184,10 +185,10 @@
   </library_geometries>
   <library_visual_scenes>
     <visual_scene id="Scene" name="Scene">
-      <node id="Positioning" name="Positioning" type="NODE">
-        <matrix sid="transform">1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 1</matrix>
+      <node id="Wall Positioning" name="Wall Positioning" type="NODE">
+        <matrix sid="transform">0 1 0 0  0 0 1 0  1 0 0 0  0 0 0 1</matrix>
         <node id="Wall" name="Wall" type="NODE">
-          <matrix sid="transform">4 0 0 0 0 0 -12 1 0 1 0 1 0 0 0 1</matrix>
+          <matrix sid="transform">18 0 0 0  0 0 1 -6  0 6 0 6  0 0 0 1</matrix>
           <instance_geometry url="#Plane-mesh" name="Wall">
             <bind_material>
               <technique_common>
@@ -198,8 +199,11 @@
             </bind_material>
           </instance_geometry>
         </node>
+      </node>
+      <node id="Floor Positioning" name="Floor Positioning" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 1</matrix>
         <node id="Floor" name="Floor" type="NODE">
-          <matrix sid="transform">4.000000 0.000000 0.000000 0.000000 0.000000 -1.000000 -0.000000 0.000000 0.000000 0.000000 -12.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+          <matrix sid="transform">6 0 0 0  0 18 0 0  0 0 1 0  0 0 0 1</matrix>
           <instance_geometry url="#Plane_001-mesh" name="Floor">
             <bind_material>
               <technique_common>

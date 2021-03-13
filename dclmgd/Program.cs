@@ -53,6 +53,7 @@ namespace dclmgd
     {
         static void Main()
         {
+            var mat = Matrix4x4.FromRotationX(-MathF.PI / 2) * Matrix4x4.FromRotationY(-MathF.PI / 2);
             new Window().Run();
         }
     }
