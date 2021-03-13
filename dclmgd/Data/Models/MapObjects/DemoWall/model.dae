@@ -201,9 +201,9 @@
         </node>
       </node>
       <node id="Floor Positioning" name="Floor Positioning" type="NODE">
-        <matrix sid="transform">1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 1</matrix>
+        <matrix sid="transform">0 -1 0 0 0 0 -1 0 1 0 0 0 0 0 0 1</matrix>
         <node id="Floor" name="Floor" type="NODE">
-          <matrix sid="transform">6 0 0 0  0 18 0 0  0 0 1 0  0 0 0 1</matrix>
+          <matrix sid="transform">18 0 0 0  0 6 0 0  0 0 1 0  0 0 0 1</matrix>
           <instance_geometry url="#Plane_001-mesh" name="Floor">
             <bind_material>
               <technique_common>

@@ -5,6 +5,7 @@ layout(location = 0) uniform mat4 model;
 layout(std140) uniform matrices
 {
     mat4 projection, view;
+    float timeSec;
 };
 
 layout(location = 0) in vec3 position;
@@ -28,6 +29,8 @@ out mat3 TBN;
 
 void main()
 {
+    fs_uv = uv;
+
     vec4 totalPosition = vec4(0.0);
     vec4 totalNormal = vec4(0.0);
 
@@ -47,8 +50,6 @@ void main()
     fs_position = vec3(model * totalPosition);
     fs_normal = transpose(inverse(mat3(model))) * totalNormal.xyz;
 
-
-    fs_uv = uv;
 
     TBN = mat3(T, B, fs_normal);
 

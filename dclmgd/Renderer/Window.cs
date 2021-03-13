@@ -1,10 +1,13 @@
-﻿using MoreLinq;
+﻿using dclmgd.Properties;
+using MoreLinq;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -33,13 +36,17 @@ namespace dclmgd.Renderer
                 Flags = ContextFlags.ForwardCompatible,
             })
         {
+            // set up the icon
+            using var img = SixLabors.ImageSharp.Image.Load<Rgba32>(Resources.AppIcon);
+            if (img.TryGetSinglePixelSpan(out var span))
+                Icon = new(new OpenTK.Windowing.Common.Input.Image(img.Width, img.Height, MemoryMarshal.Cast<Rgba32, byte>(span).ToArray()));
         }
 
         protected override void OnResize(ResizeEventArgs e)
         {
             if (matricesUbo is not null)
             {
-                matricesUbo.Data.projection = Matrix4x4.CreatePerspectiveFieldOfView(70f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
+                matricesUbo.Data.Projection = Matrix4x4.CreatePerspectiveFieldOfView(70f / 180f * MathF.PI, (float)e.Width / e.Height, .1f, 800f);
                 matricesUbo.Update();
             }
 
@@ -49,7 +56,8 @@ namespace dclmgd.Renderer
         [StructLayout(LayoutKind.Sequential)]
         struct MatricesUbo
         {
-            public Matrix4x4 projection, view;
+            public Matrix4x4 Projection, View;
+            public float Time;
         }
         UniformBufferObject<MatricesUbo> matricesUbo;
 
@@ -85,7 +93,7 @@ namespace dclmgd.Renderer
 
             // load the camera ubo
             matricesUbo = new();
-            camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.view = mat; matricesUbo.Update(); });
+            camera = new(new(6, 10, 6), new(0, 4, 0), mat => { matricesUbo.Data.View = mat; matricesUbo.Update(); });
 
             // set the object shader light properties
             setShaderLight(ShaderProgramCache.Get("object-bones"));
@@ -147,6 +155,9 @@ namespace dclmgd.Renderer
         {
             const float lightSpeedMultiplier = 1f;
             var lightPosition = new Vector3(MathF.Sin((float)(totalTimeSec * lightSpeedMultiplier)) * 5f, 6f, MathF.Cos((float)(totalTimeSec * lightSpeedMultiplier)) * 5f);
+
+            matricesUbo.Data.Time = (float)totalTimeSec;
+            matricesUbo.Update();
 
             void RenderScene(bool shadowPass)
             {
