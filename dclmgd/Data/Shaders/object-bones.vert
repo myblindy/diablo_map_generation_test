@@ -32,12 +32,7 @@ void main()
 
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
-        if(boneIds[i] == -1) continue;
-        //if(boneIds[i] >= MAX_BONES) 
-        //{
-        //    totalPosition = vec4(position, 1.0f);
-        //    break;
-        //}
+        if(boneIds[i] == -1) break;
 
         mat4 boneTransform = finalBoneMatrices[boneIds[i]];
 
@@ -48,7 +43,7 @@ void main()
         totalNormal += localNormal * weights[i];
    }
 
-    fs_position = vec3(model * totalPosition);
+    fs_position = vec3(/*model * */ totalPosition);
     fs_normal = transpose(inverse(mat3(model))) * totalNormal.xyz;
 
 

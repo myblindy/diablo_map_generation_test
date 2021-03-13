@@ -150,10 +150,8 @@ namespace dclmgd.Renderer
                         Matrix4x4.CreateTranslation(Vector3.Lerp(kf0.Value, kf1.Value, (float)scale)));
                     var rotMat = interpolateCurrentKeyFrame(rotationKeyFrames, kf => Matrix4x4.CreateFromQuaternion(kf.Value), (kf0, kf1, scale) =>
                         Matrix4x4.CreateFromQuaternion(Quaternion.Lerp(kf0.Value, kf1.Value, (float)scale)));
-                    var scaleMat = interpolateCurrentKeyFrame(scaleKeyFrames, kf => Matrix4x4.CreateScale(kf.Value), (kf0, kf1, scale) =>
-                        Matrix4x4.CreateScale(Vector3.Lerp(kf0.Value, kf1.Value, (float)scale)));
 
-                    return rotMat * posMat/* * scaleMat*/;
+                    return Matrix4x4.Transpose(rotMat * posMat);
                 }
             }
         }
@@ -174,7 +172,7 @@ namespace dclmgd.Renderer
 
         public MeshModel(string path)
         {
-            var scene = assimpContext.ImportFile(Path.Combine(path, "model.dae"), PostProcessSteps.FlipUVs | PostProcessSteps.OptimizeGraph | PostProcessSteps.OptimizeMeshes
+            var scene = assimpContext.ImportFile(Path.Combine(path, "model.dae"), PostProcessSteps.FlipUVs /*| PostProcessSteps.OptimizeGraph | PostProcessSteps.OptimizeMeshes*/
                 /*| PostProcessSteps.RemoveRedundantMaterials*/ | PostProcessSteps.Triangulate | PostProcessSteps.JoinIdenticalVertices | PostProcessSteps.LimitBoneWeights
                 /*| PostProcessSteps.MakeLeftHanded*/ | PostProcessSteps.GenerateBoundingBoxes | PostProcessSteps.CalculateTangentSpace);
 
@@ -190,7 +188,7 @@ namespace dclmgd.Renderer
             // calculate the per-mesh transforms
             var transformsDictionary = new Dictionary<Mesh, Matrix4x4>();
 
-            BoneNode visitTransforms(Node node, Matrix4x4 mat)
+            BoneNode visitTransforms(Node node, Matrix4x4 mat, bool skip = false)
             {
                 var boneNode = new BoneNode
                 {
@@ -199,7 +197,8 @@ namespace dclmgd.Renderer
                     Transform = node.Transform.ToNumerics(),
                 };
 
-                mat = node.Transform.ToNumerics() * mat;
+                if (!skip)
+                    mat = node.Transform.ToNumerics() * mat;
                 foreach (var meshIndex in node.MeshIndices)
                     transformsDictionary[scene.Meshes[meshIndex]] = mat;
                 int childIdx = 0;
@@ -208,7 +207,7 @@ namespace dclmgd.Renderer
 
                 return boneNode;
             }
-            rootBoneNode = visitTransforms(scene.RootNode, Matrix4x4.Identity);
+            rootBoneNode = visitTransforms(scene.RootNode, Matrix4x4.Identity, true);
 
             perMeshData = new PerMeshData[scene.Meshes.Count];
 
@@ -269,12 +268,12 @@ namespace dclmgd.Renderer
             var anim = animations[CurrentAnimationName];
             currentAnimationSec = (currentAnimationSec + deltaSec) % anim.Duration.TotalSeconds;
 
-            void calculateBoneTransforms(BoneNode boneNode, Matrix4x4 parentTransform)
+            void calculateBoneTransforms(BoneNode boneNode, Matrix4x4 parentTransform, bool skip = false)
             {
                 var boneAnimation = boneNode.Id >= 0 ? anim.BoneAnimations[boneNode.Id] : null;
 
-                // bone-space transform of this bone
-                var nodeTransform = boneAnimation?[TimeSpan.FromSeconds(currentAnimationSec)] ?? /*boneNode.Transform*/Matrix4x4.Identity;
+                // bone-space transform of this bone, or global transform if not a bone (ie if it's the scene or armature node)
+                var nodeTransform = boneAnimation?[TimeSpan.FromSeconds(currentAnimationSec)] ?? boneNode.Transform;
 
                 // model-space transform of this bone
                 var globalTransform = parentTransform * nodeTransform;
@@ -282,12 +281,12 @@ namespace dclmgd.Renderer
                 // subtract the original bind position of this bone to get the real pose position
                 if (boneNode.Id >= 0)
                     for (int meshIdx = 0; meshIdx < perMeshData.Length; ++meshIdx)
-                        perMeshData[meshIdx].FinalBoneMatrices[boneNode.Id] = globalTransform * perMeshData[meshIdx].InverseBindTransforms[boneNode.Id];
+                        perMeshData[meshIdx].FinalBoneMatrices[boneNode.Id] = globalTransform * perMeshData[meshIdx].InverseBindTransforms[boneNode.Id] /**boneNode.Transform*/  ;
 
                 foreach (var child in boneNode.Children)
-                    calculateBoneTransforms(child, globalTransform);
+                    calculateBoneTransforms(child, skip ? parentTransform : globalTransform);
             }
-            calculateBoneTransforms(rootBoneNode, Matrix4x4.Identity);
+            calculateBoneTransforms(rootBoneNode, Matrix4x4.CreateRotationX(MathF.PI / 2), skip: true);
         }
 
         public void Draw(bool shadowPass)
@@ -298,7 +297,6 @@ namespace dclmgd.Renderer
 
                 if (shadowPass)
                 {
-                    return;
                     perMeshDataItem.shadowProgram.Use();
                     perMeshDataItem.shadowProgram.Set("model", perMeshDataItem.modelTransform, true);
                 }

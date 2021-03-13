@@ -184,29 +184,32 @@
   </library_geometries>
   <library_visual_scenes>
     <visual_scene id="Scene" name="Scene">
-      <node id="Wall" name="Wall" type="NODE">
-        <matrix sid="transform">0.000000 0.000000 -4.000000 -8.000000 -16.000000 0.000000 -0.000000 0.000000 0.000000 8.000000 0.000000 8.000000 0.000000 0.000000 0.000000 1.000000</matrix>
-        <instance_geometry url="#Plane-mesh" name="Wall">
-          <bind_material>
-            <technique_common>
-              <instance_material symbol="Material_002-material" target="#Material_002-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-            </technique_common>
-          </bind_material>
-        </instance_geometry>
-      </node>
-      <node id="Floor" name="Floor" type="NODE">
-        <matrix sid="transform">0.000000 -8.000000 0.000000 0.000000 16.000000 0.000000 0.000000 0.000000 0.000000 0.000000 4.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
-        <instance_geometry url="#Plane_001-mesh" name="Floor">
-          <bind_material>
-            <technique_common>
-              <instance_material symbol="Material_005-material" target="#Material_005-material">
-                <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
-              </instance_material>
-            </technique_common>
-          </bind_material>
-        </instance_geometry>
+      <node id="Positioning" name="Positioning" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 0 -1 0 0 1 0 0 0 0 0 1</matrix>
+        <node id="Wall" name="Wall" type="NODE">
+          <matrix sid="transform">4 0 0 0 0 0 -12 1 0 1 0 1 0 0 0 1</matrix>
+          <instance_geometry url="#Plane-mesh" name="Wall">
+            <bind_material>
+              <technique_common>
+                <instance_material symbol="Material_002-material" target="#Material_002-material">
+                  <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
+                </instance_material>
+              </technique_common>
+            </bind_material>
+          </instance_geometry>
+        </node>
+        <node id="Floor" name="Floor" type="NODE">
+          <matrix sid="transform">4.000000 0.000000 0.000000 0.000000 0.000000 -1.000000 -0.000000 0.000000 0.000000 0.000000 -12.000000 0.000000 0.000000 0.000000 0.000000 1.000000</matrix>
+          <instance_geometry url="#Plane_001-mesh" name="Floor">
+            <bind_material>
+              <technique_common>
+                <instance_material symbol="Material_005-material" target="#Material_005-material">
+                  <bind_vertex_input semantic="UVMap" input_semantic="TEXCOORD" input_set="0"/>
+                </instance_material>
+              </technique_common>
+            </bind_material>
+          </instance_geometry>
+        </node>
       </node>
     </visual_scene>
   </library_visual_scenes>
