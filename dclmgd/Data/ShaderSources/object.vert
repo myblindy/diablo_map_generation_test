@@ -5,6 +5,7 @@ layout(location = 0) uniform mat4 model;
 layout(std140) uniform matrices
 {
     mat4 projection, view;
+    float timeSec;
 };
 
 layout(location = 0) in vec3 position;
@@ -17,7 +18,7 @@ layout(location = 4) in vec3 B;
 layout(location = 5) in ivec4 boneIds; 
 layout(location = 6) in vec4 weights;
 
-const int MAX_BONES = 100;
+const int MAX_BONES = 20;
 const int MAX_BONE_INFLUENCE = 4;
 uniform mat4 finalBoneMatrices[MAX_BONES];
 #endif
@@ -32,18 +33,15 @@ out mat3 TBN;
 
 void main()
 {
+    fs_uv = uv;
+
 #ifdef BONES
     vec4 totalPosition = vec4(0.0);
     vec4 totalNormal = vec4(0.0);
 
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
     {
-        if(boneIds[i] == -1) continue;
-        //if(boneIds[i] >= MAX_BONES) 
-        //{
-        //    totalPosition = vec4(position, 1.0f);
-        //    break;
-        //}
+        if(boneIds[i] == -1) break;
 
         mat4 boneTransform = finalBoneMatrices[boneIds[i]];
 
@@ -61,12 +59,11 @@ void main()
 #ifndef BONES
     fs_position = vec3(model * vec4(position, 1.0));
     fs_normal = transpose(inverse(mat3(model))) * normal;
+    fs_uv.x += timeSec * 2;
 #endif
 
-    fs_uv = uv;
-
 #ifdef NORMAL_MAP
-    TBN = mat3(T, B, normal);
+    TBN = mat3(T, B, fs_normal);
 #endif
 
     gl_Position = projection * view * vec4(fs_position, 1.0);

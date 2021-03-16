@@ -1,21 +1,18 @@
-﻿#version 460 core
+#version 460 core
 
 uniform mat4 model;
 
 layout(location = 0) in vec3 position;
 
-#ifdef BONES
 layout(location = 5) in ivec4 boneIds; 
 layout(location = 6) in vec4 weights;
 
 const int MAX_BONES = 20;
 const int MAX_BONE_INFLUENCE = 4;
 uniform mat4 finalBoneMatrices[MAX_BONES];
-#endif
 
 void main()
 {
-#ifdef BONES
     vec4 totalPosition = vec4(0.0);
 
     for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
@@ -29,9 +26,5 @@ void main()
    }
 
     gl_Position = model * totalPosition;
-#endif
 
-#ifndef BONES
-    gl_Position = model * vec4(position, 1.0);
-#endif
 }
